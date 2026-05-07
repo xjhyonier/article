@@ -294,6 +294,49 @@ def main():
         }
         .content-header.show { display: flex; }
         .content-header span { color: #999; font-size: 0.82rem; }
+        .content-wrapper {
+            flex: 1;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+        /* 加载动画 */
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255,255,255,0.92);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+        .loading-overlay.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #e8e8e8;
+            border-top-color: #1a1a2e;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .loading-text {
+            margin-top: 12px;
+            color: #666;
+            font-size: 0.88rem;
+        }
         .content-frame {
             flex: 1;
             border: none;
@@ -360,7 +403,13 @@ def main():
             <span>📖</span>
             从左侧选择一篇文章开始阅读
         </div>
-        <iframe class="content-frame" id="contentFrame" style="display:none;"></iframe>
+        <div class="content-wrapper" id="contentWrapper" style="display:none;">
+            <div class="loading-overlay" id="loadingOverlay">
+                <div class="loading-spinner"></div>
+                <div class="loading-text">正在加载文章...</div>
+            </div>
+            <iframe class="content-frame" id="contentFrame" onload="hideLoading()"></iframe>
+        </div>
     </div>
 
 </div>
@@ -368,6 +417,16 @@ def main():
 <script>
     let activeCategory = '""" + DEFAULT_CATEGORY + """';
     let activeLink = null;
+
+    // 显示加载动画
+    function showLoading() {
+        document.getElementById('loadingOverlay').classList.add('show');
+    }
+
+    // 隐藏加载动画
+    function hideLoading() {
+        document.getElementById('loadingOverlay').classList.remove('show');
+    }
 
     // 切换分类
     function switchCat(btn, catName) {
@@ -396,7 +455,7 @@ def main():
             firstLink.click();
         } else {
             document.getElementById('welcome').style.display = 'flex';
-            document.getElementById('contentFrame').style.display = 'none';
+            document.getElementById('contentWrapper').style.display = 'none';
             document.getElementById('contentHeader').classList.remove('show');
         }
     }
@@ -406,10 +465,16 @@ def main():
         if (activeLink) activeLink.classList.remove('active');
         linkEl.classList.add('active');
         activeLink = linkEl;
+
+        // 显示加载动画和内容区
+        document.getElementById('welcome').style.display = 'none';
+        document.getElementById('contentWrapper').style.display = 'flex';
+        showLoading();
+
+        // 加载文章
         const iframe = document.getElementById('contentFrame');
         iframe.src = path;
-        iframe.style.display = 'block';
-        document.getElementById('welcome').style.display = 'none';
+
         // 更新 header 信息
         const header = document.getElementById('contentHeader');
         header.classList.add('show');

@@ -354,11 +354,55 @@ def main():
         }
         .welcome span { font-size: 3rem; }
 
-        /* ── 响应式：小屏幕侧边栏收起 ── */
+        /* ── 响应式：小屏幕侧边栏收起为可折叠面板 ── */
         @media (max-width: 700px) {
-            .sidebar { width: 100%; min-width: unset; height: 45vh; }
             .main { flex-direction: column; }
-            .content { height: 55vh; }
+
+            /* 手机端：侧边栏折叠为顶部可展开面板 */
+            .sidebar {
+                width: 100%;
+                min-width: unset;
+                max-height: unset;
+                border-right: none;
+                border-bottom: 1px solid #ddd;
+                flex-shrink: 0;
+            }
+            .sidebar.collapsed .sidebar-header { display: none; }
+            .sidebar.collapsed .sidebar-list-scroll { display: none; }
+
+            /* 手机端：顶部展开/收起按钮 */
+            .mobile-toggle {
+                display: flex !important;
+            }
+
+            /* 手机端：内容区占满 */
+            .content { height: calc(100vh - 56px); }
+
+            /* 搜索框样式微调 */
+            .sidebar-header { padding: 10px 12px 8px; }
+            .sidebar-search { padding: 8px 10px; font-size: 0.85rem; }
+        }
+
+        /* 手机端展开/收起按钮 */
+        .mobile-toggle {
+            display: none;
+            padding: 8px 12px;
+            background: #f0f0f0;
+            border: none;
+            cursor: pointer;
+            font-size: 0.82rem;
+            color: #555;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            text-align: left;
+        }
+        .mobile-toggle:active { background: #e4e4e4; }
+        .mobile-toggle .toggle-icon {
+            transition: transform 0.2s;
+        }
+        .mobile-toggle.open .toggle-icon {
+            transform: rotate(180deg);
         }
     </style>
 </head>
@@ -372,11 +416,17 @@ def main():
     </div>
 </div>
 
+<!-- 手机端展开/收起索引按钮 -->
+<button class="mobile-toggle" id="mobileToggle" onclick="toggleSidebar()">
+    <span id="toggleText">📋 文章索引（点击展开）</span>
+    <span class="toggle-icon">▼</span>
+</button>
+
 <!-- 主体 -->
 <div class="main">
 
     <!-- 左侧边栏 -->
-    <div class="sidebar">
+    <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <input class="sidebar-search"
                    type="text"
@@ -417,6 +467,7 @@ def main():
 <script>
     let activeCategory = '""" + DEFAULT_CATEGORY + """';
     let activeLink = null;
+    let sidebarCollapsed = true; // 手机端默认收起
 
     // 显示加载动画
     function showLoading() {
@@ -427,6 +478,38 @@ def main():
     function hideLoading() {
         document.getElementById('loadingOverlay').classList.remove('show');
     }
+
+    // 手机端展开/收起侧边栏
+    function toggleSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const toggle = document.getElementById('mobileToggle');
+        const toggleText = document.getElementById('toggleText');
+        const isMobile = window.innerWidth <= 700;
+
+        if (isMobile) {
+            sidebarCollapsed = !sidebarCollapsed;
+            if (sidebarCollapsed) {
+                sidebar.classList.add('collapsed');
+                toggle.classList.remove('open');
+                toggleText.textContent = '📋 文章索引（点击展开）';
+            } else {
+                sidebar.classList.remove('collapsed');
+                toggle.classList.add('open');
+                toggleText.textContent = '📋 文章索引（点击收起）';
+            }
+        }
+    }
+
+    // 检测屏幕宽度变化，自动重置状态
+    window.addEventListener('resize', function() {
+        const isMobile = window.innerWidth <= 700;
+        const sidebar = document.getElementById('sidebar');
+        const toggle = document.getElementById('mobileToggle');
+        if (!isMobile) {
+            sidebar.classList.remove('collapsed');
+            toggle.classList.remove('open');
+        }
+    });
 
     // 切换分类
     function switchCat(btn, catName) {
@@ -516,6 +599,13 @@ def main():
 
     // 自动打开默认分类的第一篇文章
     document.addEventListener('DOMContentLoaded', function() {
+        // 手机端默认收起侧边栏
+        const isMobile = window.innerWidth <= 700;
+        if (isMobile) {
+            document.getElementById('sidebar').classList.add('collapsed');
+        }
+
+        // 自动打开第一篇文章
         var firstLink = document.querySelector('#list-' + activeCategory + ' .sidebar-link');
         if (firstLink) {
             firstLink.click();

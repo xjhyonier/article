@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文章汇总</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+                         "PingFang SC", "Microsoft YaHei", sans-serif;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* ── 顶部标签栏 ── */
+        .top-bar {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            color: white;
+            display: flex;
+            align-items: flex-end;
+            padding: 0 20px;
+            height: 56px;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+        .top-bar h1 {
+            font-size: 1.05rem;
+            letter-spacing: 1px;
+            margin-right: 24px;
+            white-space: nowrap;
+            opacity: 0.85;
+            align-self: center;
+        }
+        .tab-btn {
+            padding: 10px 20px 10px;
+            border: none;
+            border-radius: 8px 8px 0 0;
+            background: rgba(255,255,255,0.13);
+            color: rgba(255,255,255,0.65);
+            font-size: 0.88rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+        .tab-btn:hover { background: rgba(255,255,255,0.25); color: white; }
+        .tab-btn.active {
+            background: #f5f5f5;
+            color: #1a1a2e;
+            font-weight: 600;
+        }
+        .tab-count {
+            font-size: 0.72rem;
+            background: rgba(0,0,0,0.12);
+            padding: 0 6px;
+            border-radius: 8px;
+            line-height: 1.6;
+        }
+        .tab-btn.active .tab-count {
+            background: #1a1a2e;
+            color: white;
+        }
+
+        /* ── 主体：左侧边栏 + 右侧内容 ── */
+        .main {
+            display: flex;
+            height: calc(100vh - 56px);
+        }
+
+        /* ── 侧边栏 ── */
+        .sidebar {
+            width: 320px;
+            min-width: 320px;
+            background: #fafafa;
+            border-right: 1px solid #e8e8e8;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .sidebar-header {
+            padding: 14px 16px 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .sidebar-search {
+            width: 100%;
+            padding: 9px 12px;
+            border: 1.5px solid #ddd;
+            border-radius: 8px;
+            font-size: 0.88rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .sidebar-search:focus { border-color: #1a1a2e; }
+        .sidebar-list-scroll {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px 0;
+        }
+        /* 文章列表（每个分类一个，JS 切换 display） */
+        .sidebar-list {
+            display: flex;
+            flex-direction: column;
+        }
+        .sidebar-link {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            padding: 10px 16px;
+            text-decoration: none;
+            color: #333;
+            font-size: 0.88rem;
+            transition: background 0.15s;
+            line-height: 1.4;
+            border-left: 3px solid transparent;
+        }
+        .sidebar-link:hover {
+            background: #eee;
+        }
+        .sidebar-link.active {
+            background: #e8eeff;
+            border-left-color: #1a1a2e;
+            color: #1a1a2e;
+            font-weight: 500;
+        }
+        .art-date {
+            flex-shrink: 0;
+            font-size: 0.75rem;
+            color: #666;
+            background: #eee;
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-family: "SF Mono", Consolas, "Menlo", monospace;
+            white-space: nowrap;
+        }
+        .art-date.unknown {
+            color: #bbb;
+            background: transparent;
+        }
+        .sidebar-no-result {
+            padding: 30px 16px;
+            color: #999;
+            font-size: 0.88rem;
+            text-align: center;
+            display: none;
+        }
+
+        /* ── 右侧内容区 ── */
+        .content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .content-header {
+            padding: 12px 20px;
+            border-bottom: 1px solid #eee;
+            font-size: 0.88rem;
+            color: #666;
+            display: none;
+            align-items: center;
+            gap: 10px;
+            background: #fafafa;
+            flex-shrink: 0;
+        }
+        .content-header.show { display: flex; }
+        .content-header span { color: #999; font-size: 0.82rem; }
+        .content-frame {
+            flex: 1;
+            border: none;
+            width: 100%;
+        }
+        .welcome {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #bbb;
+            font-size: 1.1rem;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .welcome span { font-size: 3rem; }
+
+        /* ── 响应式：小屏幕侧边栏收起 ── */
+        @media (max-width: 700px) {
+            .sidebar { width: 100%; min-width: unset; height: 45vh; }
+            .main { flex-direction: column; }
+            .content { height: 55vh; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- 顶部标签栏 -->
+<div class="top-bar">
+    <h1>📚 文章汇总</h1>
+    <div style="display:flex; gap:4px; overflow-x:auto;">
+        <button class="tab-btn" onclick="switchCat(this,'美元资产')">美元资产<span class="tab-count">5</span></button>
+            <button class="tab-btn active" onclick="switchCat(this,'投资心得')">投资心得<span class="tab-count">20</span></button>
+            <button class="tab-btn" onclick="switchCat(this,'其他')">其他<span class="tab-count">390</span></button>
+    </div>
+</div>
+
+<!-- 主体 -->
+<div class="main">
+
+    <!-- 左侧边栏 -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <input class="sidebar-search"
+                   type="text"
+                   id="sidebarSearch"
+                   placeholder="搜索文章..."
+                   oninput="filterSidebar()">
+        </div>
+        <div class="sidebar-list-scroll">
+            <div class="sidebar-list" id="list-美元资产" style="display:none">
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '01美元资产/拨开云雾_/index.html'); return false;" title="拨开云雾"><span class="art-date">2025-09-09</span>拨开云雾</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '01美元资产/不要被短期波动裹挟_/index.html'); return false;" title="不要被短期波动裹挟"><span class="art-date">2025-04-15</span>不要被短期波动裹挟</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '01美元资产/那些我消失以后的日子_/index.html'); return false;" title="那些我消失以后的日子"><span class="art-date">2025-03-17</span>那些我消失以后的日子</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '01美元资产/终于尘埃落定_/index.html'); return false;" title="终于尘埃落定"><span class="art-date">2025-03-02</span>终于尘埃落定</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '01美元资产/旧事重提/index.html'); return false;" title="旧事重提"><span class="art-date">2024-06-24</span>旧事重提</a>
+                </div>
+
+                <div class="sidebar-list" id="list-投资心得" style="display:block">
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '02投资心得/不知野望落何处_/index.html'); return false;" title="不知野望落何处"><span class="art-date">2026-05-06</span>不知野望落何处</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '02投资心得/终将毫无波澜_/index.html'); return false;" title="终将毫无波澜"><span class="art-date">2026-02-22</span>终将毫无波澜</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '02投资心得/为未来撒下种子_/index.html'); return false;" title="为未来撒下种子"><span class="art-date">2025-12-02</span>为未来撒下种子</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '02投资心得/难以避免的坠落_/index.html'); return false;" title="难以避免的坠落"><span class="art-date">2025-11-19</span>难以避免的坠落</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '02投资心得/最后的精髓_/index.html'); return false;" title="最后的精髓"><span class="art-date">2025-11-11</span>最后的精髓</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '02投资心得/惊涛之后_开始筑堤_/index.html'); return false;" title="惊涛之后_开始筑堤"><span class="art-date">2025-10-15</span>惊涛之后_开始筑堤</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '02投资心得/赚钱有多难_/index.html'); return false;" title="赚钱有多难"><span class="art-date">2025-10-01</span>赚钱有多难</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '02投资心得/变化正在发生_/index.html'); return false;" title="变化正在发生"><span class="art-date">2025-09-30</span>变化正在发生</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '02投资心得/建立自己的城邦_/index.html'); return false;" title="建立自己的城邦"><span class="art-date">2025-07-09</span>建立自己的城邦</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '02投资心得/一切尽在不言中_/index.html'); return false;" title="一切尽在不言中"><span class="art-date">2025-06-20</span>一切尽在不言中</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '02投资心得/对抗时间的最优解_/index.html'); return false;" title="对抗时间的最优解"><span class="art-date">2025-05-19</span>对抗时间的最优解</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '02投资心得/平静应对_/index.html'); return false;" title="平静应对"><span class="art-date">2025-05-12</span>平静应对</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '02投资心得/不要浪费每一次危机_/index.html'); return false;" title="不要浪费每一次危机"><span class="art-date">2025-04-14</span>不要浪费每一次危机</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '02投资心得/踏上孤独的旅程_/index.html'); return false;" title="踏上孤独的旅程"><span class="art-date">2025-04-11</span>踏上孤独的旅程</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '02投资心得/越无知越自信_/index.html'); return false;" title="越无知越自信"><span class="art-date">2025-04-08</span>越无知越自信</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '02投资心得/选择比努力重要_/index.html'); return false;" title="选择比努力重要"><span class="art-date">2025-03-20</span>选择比努力重要</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '02投资心得/悬着的心终于放下了_/index.html'); return false;" title="悬着的心终于放下了"><span class="art-date">2025-03-19</span>悬着的心终于放下了</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '02投资心得/跃出水面看前路_/index.html'); return false;" title="跃出水面看前路"><span class="art-date">2025-03-12</span>跃出水面看前路</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '02投资心得/尽所能_敬所不能_/index.html'); return false;" title="尽所能_敬所不能"><span class="art-date">2024-11-25</span>尽所能_敬所不能</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '02投资心得/转眼二十年_/index.html'); return false;" title="转眼二十年"><span class="art-date">2024-11-13</span>转眼二十年</a>
+                </div>
+
+                <div class="sidebar-list" id="list-其他" style="display:none">
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/这里的战场静悄悄_/index.html'); return false;" title="这里的战场静悄悄"><span class="art-date">2026-05-05</span>这里的战场静悄悄</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/转身_走向新的起点_/index.html'); return false;" title="转身_走向新的起点"><span class="art-date">2026-05-04</span>转身_走向新的起点</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/你大爷还是你大爷_/index.html'); return false;" title="你大爷还是你大爷"><span class="art-date">2026-04-30</span>你大爷还是你大爷</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/当他们不再期待跃龙门_/index.html'); return false;" title="当他们不再期待跃龙门"><span class="art-date">2026-04-29</span>当他们不再期待跃龙门</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/人生后半场_/index.html'); return false;" title="人生后半场"><span class="art-date">2026-04-27</span>人生后半场</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/好时光一去不返_/index.html'); return false;" title="好时光一去不返"><span class="art-date">2026-04-26</span>好时光一去不返</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/一个都不能少_/index.html'); return false;" title="一个都不能少"><span class="art-date">2026-04-23</span>一个都不能少</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/从娃娃抓起_/index.html'); return false;" title="从娃娃抓起"><span class="art-date">2026-04-17</span>从娃娃抓起</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/一个漫长的故事翻篇了_/index.html'); return false;" title="一个漫长的故事翻篇了"><span class="art-date">2026-04-16</span>一个漫长的故事翻篇了</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/脱掉衣冠楚楚的衣服_/index.html'); return false;" title="脱掉衣冠楚楚的衣服"><span class="art-date">2026-04-15</span>脱掉衣冠楚楚的衣服</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/才刚刚开始_/index.html'); return false;" title="才刚刚开始"><span class="art-date">2026-04-14</span>才刚刚开始</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/上岸不提船上事_/index.html'); return false;" title="上岸不提船上事"><span class="art-date">2026-04-13</span>上岸不提船上事</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/开始一个新阶段_/index.html'); return false;" title="开始一个新阶段"><span class="art-date">2026-04-12</span>开始一个新阶段</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/六年之后再回首_/index.html'); return false;" title="六年之后再回首"><span class="art-date">2026-04-10</span>六年之后再回首</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/最伟大的交易员_/index.html'); return false;" title="最伟大的交易员"><span class="art-date">2026-04-08</span>最伟大的交易员</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/钱是这么赚来的_/index.html'); return false;" title="钱是这么赚来的"><span class="art-date">2026-03-30</span>钱是这么赚来的</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/都是赔光的命_/index.html'); return false;" title="都是赔光的命"><span class="art-date">2026-03-27</span>都是赔光的命</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/风继续吹_/index.html'); return false;" title="风继续吹"><span class="art-date">2026-03-23</span>风继续吹</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/最好的下一步_/index.html'); return false;" title="最好的下一步"><span class="art-date">2026-03-18</span>最好的下一步</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/富人别玩命_/index.html'); return false;" title="富人别玩命"><span class="art-date">2026-03-15</span>富人别玩命</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/你看我还有机会吗_/index.html'); return false;" title="你看我还有机会吗"><span class="art-date">2026-02-25</span>你看我还有机会吗</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/我最成功的投资_/index.html'); return false;" title="我最成功的投资"><span class="art-date">2026-02-08</span>我最成功的投资</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/终于还是崩了_/index.html'); return false;" title="终于还是崩了"><span class="art-date">2026-02-05</span>终于还是崩了</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/防范于未然_/index.html'); return false;" title="防范于未然"><span class="art-date">2026-02-02</span>防范于未然</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/这样赚钱_有点意思_/index.html'); return false;" title="这样赚钱_有点意思"><span class="art-date">2026-01-30</span>这样赚钱_有点意思</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/冰火两重天_真香_/index.html'); return false;" title="冰火两重天_真香"><span class="art-date">2026-01-29</span>冰火两重天_真香</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/一笑已经风云过_/index.html'); return false;" title="一笑已经风云过"><span class="art-date">2026-01-28</span>一笑已经风云过</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/又被毒打得骂骂咧咧_/index.html'); return false;" title="又被毒打得骂骂咧咧"><span class="art-date">2026-01-23</span>又被毒打得骂骂咧咧</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/没文化真可怕_/index.html'); return false;" title="没文化真可怕"><span class="art-date">2026-01-22</span>没文化真可怕</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/这生意_开了台印钞机_/index.html'); return false;" title="这生意_开了台印钞机"><span class="art-date">2026-01-21</span>这生意_开了台印钞机</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/天降喜讯_/index.html'); return false;" title="天降喜讯"><span class="art-date">2026-01-20</span>天降喜讯</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/能坚持一两件事就足够了_/index.html'); return false;" title="能坚持一两件事就足够了"><span class="art-date">2026-01-19</span>能坚持一两件事就足够了</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/他们都没做错什么_/index.html'); return false;" title="他们都没做错什么"><span class="art-date">2026-01-16</span>他们都没做错什么</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/风雨骤急_驶向下一站_/index.html'); return false;" title="风雨骤急_驶向下一站"><span class="art-date">2026-01-15</span>风雨骤急_驶向下一站</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/狂飙之后_/index.html'); return false;" title="狂飙之后"><span class="art-date">2026-01-14</span>狂飙之后</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/走入风暴眼_/index.html'); return false;" title="走入风暴眼"><span class="art-date">2026-01-12</span>走入风暴眼</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/最后的悬念_/index.html'); return false;" title="最后的悬念"><span class="art-date">2026-01-02</span>最后的悬念</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/我的2025年_/index.html'); return false;" title="我的2025年"><span class="art-date">2026-01-01</span>我的2025年</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/开启新篇章_/index.html'); return false;" title="开启新篇章"><span class="art-date">2025-12-31</span>开启新篇章</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/一场漫长的告别_/index.html'); return false;" title="一场漫长的告别"><span class="art-date">2025-12-19</span>一场漫长的告别</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/好草就得回头吃_/index.html'); return false;" title="好草就得回头吃"><span class="art-date">2025-12-18</span>好草就得回头吃</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/迷途不知返_/index.html'); return false;" title="迷途不知返"><span class="art-date">2025-12-16</span>迷途不知返</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/触摸未来_/index.html'); return false;" title="触摸未来"><span class="art-date">2025-12-12</span>触摸未来</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/无数被改变的命运_/index.html'); return false;" title="无数被改变的命运"><span class="art-date">2025-12-11</span>无数被改变的命运</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/我们不能再摔倒了_/index.html'); return false;" title="我们不能再摔倒了"><span class="art-date">2025-12-08</span>我们不能再摔倒了</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/好时光一去不复返_/index.html'); return false;" title="好时光一去不复返"><span class="art-date">2025-12-05</span>好时光一去不复返</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/又被举报了_/index.html'); return false;" title="又被举报了"><span class="art-date">2025-12-04</span>又被举报了</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/做自己的女娲_/index.html'); return false;" title="做自己的女娲"><span class="art-date">2025-11-27</span>做自己的女娲</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/调仓_长梦已醒_/index.html'); return false;" title="调仓_长梦已醒"><span class="art-date">2025-11-26</span>调仓_长梦已醒</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/未来并非我所能见_/index.html'); return false;" title="未来并非我所能见"><span class="art-date">2025-11-24</span>未来并非我所能见</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/账户蹦起了迪_/index.html'); return false;" title="账户蹦起了迪"><span class="art-date">2025-11-21</span>账户蹦起了迪</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/岁月如刀_斩天骄_/index.html'); return false;" title="岁月如刀_斩天骄"><span class="art-date">2025-11-18</span>岁月如刀_斩天骄</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/巨佬第二次抬轿_/index.html'); return false;" title="巨佬第二次抬轿"><span class="art-date">2025-11-16</span>巨佬第二次抬轿</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/强得悄无声息_/index.html'); return false;" title="强得悄无声息"><span class="art-date">2025-11-10</span>强得悄无声息</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/去了一趟英伟达总部_/index.html'); return false;" title="去了一趟英伟达总部"><span class="art-date">2025-11-06</span>去了一趟英伟达总部</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/一去不复返_/index.html'); return false;" title="一去不复返"><span class="art-date">2025-11-04</span>一去不复返</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/终于还是来了_/index.html'); return false;" title="终于还是来了"><span class="art-date">2025-11-04</span>终于还是来了</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/此刻心定_/index.html'); return false;" title="此刻心定"><span class="art-date">2025-11-03</span>此刻心定</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/暴跌终于来了_/index.html'); return false;" title="暴跌终于来了"><span class="art-date">2025-10-31</span>暴跌终于来了</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/造富神话_/index.html'); return false;" title="造富神话"><span class="art-date">2025-10-30</span>造富神话</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/睡后收入_/index.html'); return false;" title="睡后收入"><span class="art-date">2025-10-29</span>睡后收入</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/备胎转正_/index.html'); return false;" title="备胎转正"><span class="art-date">2025-10-28</span>备胎转正</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/钱多得无处可去_/index.html'); return false;" title="钱多得无处可去"><span class="art-date">2025-10-27</span>钱多得无处可去</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/我们也该向前看了_/index.html'); return false;" title="我们也该向前看了"><span class="art-date">2025-10-22</span>我们也该向前看了</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/不必再等旧人归_/index.html'); return false;" title="不必再等旧人归"><span class="art-date">2025-10-21</span>不必再等旧人归</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/我的生存之道_/index.html'); return false;" title="我的生存之道"><span class="art-date">2025-10-20</span>我的生存之道</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/笑渐不闻声渐悄_/index.html'); return false;" title="笑渐不闻声渐悄"><span class="art-date">2025-10-16</span>笑渐不闻声渐悄</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/一切自有答案_/index.html'); return false;" title="一切自有答案"><span class="art-date">2025-10-14</span>一切自有答案</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/一切才刚刚开始_/index.html'); return false;" title="一切才刚刚开始"><span class="art-date">2025-10-10</span>一切才刚刚开始</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/涨瞎了双眼_/index.html'); return false;" title="涨瞎了双眼"><span class="art-date">2025-10-09</span>涨瞎了双眼</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/发财是一场意外_/index.html'); return false;" title="发财是一场意外"><span class="art-date">2025-09-25</span>发财是一场意外</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/灰烬深处有余温_/index.html'); return false;" title="灰烬深处有余温"><span class="art-date">2025-09-23</span>灰烬深处有余温</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/我所见到的未来_/index.html'); return false;" title="我所见到的未来"><span class="art-date">2025-09-22</span>我所见到的未来</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/白马穿过至暗时刻_/index.html'); return false;" title="白马穿过至暗时刻"><span class="art-date">2025-09-16</span>白马穿过至暗时刻</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/你所不知道的_/index.html'); return false;" title="你所不知道的"><span class="art-date">2025-09-15</span>你所不知道的</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/人生短短急个球_/index.html'); return false;" title="人生短短急个球"><span class="art-date">2025-09-12</span>人生短短急个球</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/这一路的颠沛流离_/index.html'); return false;" title="这一路的颠沛流离"><span class="art-date">2025-09-10</span>这一路的颠沛流离</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/大跃进时代_/index.html'); return false;" title="大跃进时代"><span class="art-date">2025-09-09</span>大跃进时代</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/向水深处走去_/index.html'); return false;" title="向水深处走去"><span class="art-date">2025-09-08</span>向水深处走去</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/意外的收获_/index.html'); return false;" title="意外的收获"><span class="art-date">2025-09-04</span>意外的收获</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/答案在风中飘扬_/index.html'); return false;" title="答案在风中飘扬"><span class="art-date">2025-09-03</span>答案在风中飘扬</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/狂飙的印钞机_/index.html'); return false;" title="狂飙的印钞机"><span class="art-date">2025-08-28</span>狂飙的印钞机</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/通道又断了一条_/index.html'); return false;" title="通道又断了一条"><span class="art-date">2025-08-26</span>通道又断了一条</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/妙不可言_/index.html'); return false;" title="妙不可言"><span class="art-date">2025-08-25</span>妙不可言</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/巴菲特出手了_/index.html'); return false;" title="巴菲特出手了"><span class="art-date">2025-08-15</span>巴菲特出手了</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/你看不见的世界_/index.html'); return false;" title="你看不见的世界"><span class="art-date">2025-08-14</span>你看不见的世界</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/保留了一点幸运_/index.html'); return false;" title="保留了一点幸运"><span class="art-date">2025-08-11</span>保留了一点幸运</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/掀开幕布的一角_/index.html'); return false;" title="掀开幕布的一角"><span class="art-date">2025-08-07</span>掀开幕布的一角</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/想成为那样的人_/index.html'); return false;" title="想成为那样的人"><span class="art-date">2025-08-06</span>想成为那样的人</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/世界已经永远改变了_/index.html'); return false;" title="世界已经永远改变了"><span class="art-date">2025-08-01</span>世界已经永远改变了</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/如期而至_/index.html'); return false;" title="如期而至"><span class="art-date">2025-07-31</span>如期而至</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/让我再看你一眼_/index.html'); return false;" title="让我再看你一眼"><span class="art-date">2025-07-22</span>让我再看你一眼</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/时光里的灰烬_/index.html'); return false;" title="时光里的灰烬"><span class="art-date">2025-07-20</span>时光里的灰烬</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/活在欲望之外_/index.html'); return false;" title="活在欲望之外"><span class="art-date">2025-07-16</span>活在欲望之外</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/听见未来的回响_/index.html'); return false;" title="听见未来的回响"><span class="art-date">2025-07-14</span>听见未来的回响</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/终局之战到来_/index.html'); return false;" title="终局之战到来"><span class="art-date">2025-07-03</span>终局之战到来</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/离开一段时间_/index.html'); return false;" title="离开一段时间"><span class="art-date">2025-06-27</span>离开一段时间</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/创历史新高了_/index.html'); return false;" title="创历史新高了"><span class="art-date">2025-06-26</span>创历史新高了</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/摸着石头过河_/index.html'); return false;" title="摸着石头过河"><span class="art-date">2025-06-25</span>摸着石头过河</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/没有标题_/index.html'); return false;" title="没有标题"><span class="art-date">2025-06-24</span>没有标题</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/硝烟从未散尽_/index.html'); return false;" title="硝烟从未散尽"><span class="art-date">2025-06-23</span>硝烟从未散尽</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/持久才是最难的_/index.html'); return false;" title="持久才是最难的"><span class="art-date">2025-06-20</span>持久才是最难的</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/一段漫长的旅程_/index.html'); return false;" title="一段漫长的旅程"><span class="art-date">2025-06-19</span>一段漫长的旅程</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/回不去的世界_/index.html'); return false;" title="回不去的世界"><span class="art-date">2025-06-17</span>回不去的世界</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/再回首_/index.html'); return false;" title="再回首"><span class="art-date">2025-06-16</span>再回首</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/这篇你不看就亏了_/index.html'); return false;" title="这篇你不看就亏了"><span class="art-date">2025-06-14</span>这篇你不看就亏了</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/这个时代的_家常菜__/index.html'); return false;" title="这个时代的_家常菜"><span class="art-date">2025-06-13</span>这个时代的_家常菜</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/找到属于自己的节奏_/index.html'); return false;" title="找到属于自己的节奏"><span class="art-date">2025-06-12</span>找到属于自己的节奏</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/有钱人没有傻瓜_/index.html'); return false;" title="有钱人没有傻瓜"><span class="art-date">2025-06-11</span>有钱人没有傻瓜</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/失而复得_/index.html'); return false;" title="失而复得"><span class="art-date">2025-06-10</span>失而复得</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/做一个测试_/index.html'); return false;" title="做一个测试"><span class="art-date">2025-06-07</span>做一个测试</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/最后的体面_/index.html'); return false;" title="最后的体面"><span class="art-date">2025-06-06</span>最后的体面</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/只不过从头再来_/index.html'); return false;" title="只不过从头再来"><span class="art-date">2025-06-05</span>只不过从头再来</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/大势将至_未来已来_/index.html'); return false;" title="大势将至_未来已来"><span class="art-date">2025-06-04</span>大势将至_未来已来</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/人对了_事就对了_/index.html'); return false;" title="人对了_事就对了"><span class="art-date">2025-05-31</span>人对了_事就对了</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/成为另外一种人_/index.html'); return false;" title="成为另外一种人"><span class="art-date">2025-05-30</span>成为另外一种人</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/重回巅峰_/index.html'); return false;" title="重回巅峰"><span class="art-date">2025-05-29</span>重回巅峰</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/改变不了潮水的方向_/index.html'); return false;" title="改变不了潮水的方向"><span class="art-date">2025-05-28</span>改变不了潮水的方向</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/可以迷茫_不要迷路/index.html'); return false;" title="可以迷茫_不要迷路"><span class="art-date">2025-05-27</span>可以迷茫_不要迷路</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/别急_你还没到巅峰期_/index.html'); return false;" title="别急_你还没到巅峰期"><span class="art-date">2025-05-23</span>别急_你还没到巅峰期</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/让奇迹发生_/index.html'); return false;" title="让奇迹发生"><span class="art-date">2025-05-21</span>让奇迹发生</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/不完美的回答（4）_/index.html'); return false;" title="不完美的回答（4）"><span class="art-date">2025-05-19</span>不完美的回答（4）</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/大炮又支愣起来了_/index.html'); return false;" title="大炮又支愣起来了"><span class="art-date">2025-05-15</span>大炮又支愣起来了</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/那些显而易见的蠢事_/index.html'); return false;" title="那些显而易见的蠢事"><span class="art-date">2025-05-14</span>那些显而易见的蠢事</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/赚钱的伦理问题_/index.html'); return false;" title="赚钱的伦理问题"><span class="art-date">2025-05-13</span>赚钱的伦理问题</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/冲击会非常大_/index.html'); return false;" title="冲击会非常大"><span class="art-date">2025-05-08</span>冲击会非常大</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/不完美的回答（3）_/index.html'); return false;" title="不完美的回答（3）"><span class="art-date">2025-05-07</span>不完美的回答（3）</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/往大风吹的方向去_/index.html'); return false;" title="往大风吹的方向去"><span class="art-date">2025-05-07</span>往大风吹的方向去</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/被束缚在经验里_/index.html'); return false;" title="被束缚在经验里"><span class="art-date">2025-05-02</span>被束缚在经验里</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/一切并没有回到原点_/index.html'); return false;" title="一切并没有回到原点"><span class="art-date">2025-05-01</span>一切并没有回到原点</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/没有标准答案_/index.html'); return false;" title="没有标准答案"><span class="art-date">2025-04-30</span>没有标准答案</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/请照顾好你的船_/index.html'); return false;" title="请照顾好你的船"><span class="art-date">2025-04-28</span>请照顾好你的船</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/看不懂的世界_/index.html'); return false;" title="看不懂的世界"><span class="art-date">2025-04-25</span>看不懂的世界</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/一觉醒来发财了_/index.html'); return false;" title="一觉醒来发财了"><span class="art-date">2025-04-10</span>一觉醒来发财了</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/不完美的回答（2）_/index.html'); return false;" title="不完美的回答（2）"><span class="art-date">2025-04-09</span>不完美的回答（2）</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/终有一天等到你_/index.html'); return false;" title="终有一天等到你"><span class="art-date">2025-04-09</span>终有一天等到你</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/上了深刻的一课_/index.html'); return false;" title="上了深刻的一课"><span class="art-date">2025-04-07</span>上了深刻的一课</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/不完美的回答（1）_/index.html'); return false;" title="不完美的回答（1）"><span class="art-date">2025-04-07</span>不完美的回答（1）</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/拍马赶到_/index.html'); return false;" title="拍马赶到"><span class="art-date">2025-04-05</span>拍马赶到</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/大暴跌_就这___/index.html'); return false;" title="大暴跌_就这"><span class="art-date">2025-04-04</span>大暴跌_就这</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/开小灶_/index.html'); return false;" title="开小灶"><span class="art-date">2025-04-04</span>开小灶</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/风暴来袭_/index.html'); return false;" title="风暴来袭"><span class="art-date">2025-04-03</span>风暴来袭</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/新的开始_/index.html'); return false;" title="新的开始"><span class="art-date">2025-04-01</span>新的开始</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/该来的终于来了_/index.html'); return false;" title="该来的终于来了"><span class="art-date">2025-03-31</span>该来的终于来了</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/隧道的尽头_/index.html'); return false;" title="隧道的尽头"><span class="art-date">2025-03-29</span>隧道的尽头</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/大跌怎么办_/index.html'); return false;" title="大跌怎么办"><span class="art-date">2025-03-26</span>大跌怎么办</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/拥抱变化_/index.html'); return false;" title="拥抱变化"><span class="art-date">2025-03-25</span>拥抱变化</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/未来如洪流_/index.html'); return false;" title="未来如洪流"><span class="art-date">2025-03-24</span>未来如洪流</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/一切都是最好的安排_/index.html'); return false;" title="一切都是最好的安排"><span class="art-date">2025-03-15</span>一切都是最好的安排</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/转眼又是一年_/index.html'); return false;" title="转眼又是一年"><span class="art-date">2025-03-14</span>转眼又是一年</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/写在春天里_/index.html'); return false;" title="写在春天里"><span class="art-date">2025-03-13</span>写在春天里</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/抄底_刚刚开始_/index.html'); return false;" title="抄底_刚刚开始"><span class="art-date">2025-03-11</span>抄底_刚刚开始</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/让一部分人更富一些_/index.html'); return false;" title="让一部分人更富一些"><span class="art-date">2025-03-10</span>让一部分人更富一些</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/何日君再来_/index.html'); return false;" title="何日君再来"><span class="art-date">2025-03-07</span>何日君再来</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/离钱最近的地方_/index.html'); return false;" title="离钱最近的地方"><span class="art-date">2025-03-05</span>离钱最近的地方</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/被举报了_/index.html'); return false;" title="被举报了"><span class="art-date">2025-03-04</span>被举报了</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/有些话只能点到为止_/index.html'); return false;" title="有些话只能点到为止"><span class="art-date">2025-03-03</span>有些话只能点到为止</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/特朗普风暴_/index.html'); return false;" title="特朗普风暴"><span class="art-date">2025-02-28</span>特朗普风暴</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/走在薄冰上过河_/index.html'); return false;" title="走在薄冰上过河"><span class="art-date">2025-02-27</span>走在薄冰上过河</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/_保姆级教程__/index.html'); return false;" title="_保姆级教程"><span class="art-date">2025-02-26</span>_保姆级教程</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/_宇宙最重要财报__/index.html'); return false;" title="_宇宙最重要财报"><span class="art-date">2025-02-25</span>_宇宙最重要财报</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/他们都回来了_/index.html'); return false;" title="他们都回来了"><span class="art-date">2025-02-24</span>他们都回来了</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/普通人的妙笔_/index.html'); return false;" title="普通人的妙笔"><span class="art-date">2025-02-21</span>普通人的妙笔</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/路边的狗听了都遗憾_/index.html'); return false;" title="路边的狗听了都遗憾"><span class="art-date">2025-02-17</span>路边的狗听了都遗憾</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/经历本身就是答案_/index.html'); return false;" title="经历本身就是答案"><span class="art-date">2025-02-14</span>经历本身就是答案</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/看看你周围那些人_/index.html'); return false;" title="看看你周围那些人"><span class="art-date">2025-02-10</span>看看你周围那些人</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/走向深水区_/index.html'); return false;" title="走向深水区"><span class="art-date">2025-02-09</span>走向深水区</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/压力还要持续十几年_/index.html'); return false;" title="压力还要持续十几年"><span class="art-date">2025-02-07</span>压力还要持续十几年</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/机会点来了_/index.html'); return false;" title="机会点来了"><span class="art-date">2025-02-05</span>机会点来了</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/戏剧性的一幕_/index.html'); return false;" title="戏剧性的一幕"><span class="art-date">2025-02-04</span>戏剧性的一幕</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/真正的财神_/index.html'); return false;" title="真正的财神"><span class="art-date">2025-02-03</span>真正的财神</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/想对你们说的一些话/index.html'); return false;" title="想对你们说的一些话"><span class="art-date">2025-01-29</span>想对你们说的一些话</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/神话破灭_/index.html'); return false;" title="神话破灭"><span class="art-date">2025-01-28</span>神话破灭</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/即将到来的风险_/index.html'); return false;" title="即将到来的风险"><span class="art-date">2025-01-27</span>即将到来的风险</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/一分钱都赚不到了_/index.html'); return false;" title="一分钱都赚不到了"><span class="art-date">2025-01-23</span>一分钱都赚不到了</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/满城都是投机者_/index.html'); return false;" title="满城都是投机者"><span class="art-date">2025-01-22</span>满城都是投机者</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/坚持自己的眼光_/index.html'); return false;" title="坚持自己的眼光"><span class="art-date">2025-01-21</span>坚持自己的眼光</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/我落袋为安了_舒服_/index.html'); return false;" title="我落袋为安了_舒服"><span class="art-date">2025-01-17</span>我落袋为安了_舒服</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/我后面的打算_/index.html'); return false;" title="我后面的打算"><span class="art-date">2025-01-16</span>我后面的打算</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/准备迎接风暴吧_/index.html'); return false;" title="准备迎接风暴吧"><span class="art-date">2025-01-15</span>准备迎接风暴吧</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/全村人的希望_/index.html'); return false;" title="全村人的希望"><span class="art-date">2025-01-14</span>全村人的希望</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/不太聪明的人_/index.html'); return false;" title="不太聪明的人"><span class="art-date">2025-01-10</span>不太聪明的人</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/心无旁骛_/index.html'); return false;" title="心无旁骛"><span class="art-date">2025-01-09</span>心无旁骛</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/2025年搞钱指南_/index.html'); return false;" title="2025年搞钱指南"><span class="art-date">2025-01-08</span>2025年搞钱指南</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/主力回来了_/index.html'); return false;" title="主力回来了"><span class="art-date">2025-01-07</span>主力回来了</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/提前布局_/index.html'); return false;" title="提前布局"><span class="art-date">2025-01-06</span>提前布局</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/新的时间开始了_/index.html'); return false;" title="新的时间开始了"><span class="art-date">2025-01-02</span>新的时间开始了</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/2025年的投资展望_/index.html'); return false;" title="2025年的投资展望"><span class="art-date">2024-12-29</span>2025年的投资展望</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/我的2024年度_/index.html'); return false;" title="我的2024年度"><span class="art-date">2024-12-26</span>我的2024年度</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/赚钱的秘诀_/index.html'); return false;" title="赚钱的秘诀"><span class="art-date">2024-12-24</span>赚钱的秘诀</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/趋势越来越明显_/index.html'); return false;" title="趋势越来越明显"><span class="art-date">2024-12-23</span>趋势越来越明显</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/一定要扛下去_/index.html'); return false;" title="一定要扛下去"><span class="art-date">2024-12-20</span>一定要扛下去</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/倒车接人_/index.html'); return false;" title="倒车接人"><span class="art-date">2024-12-19</span>倒车接人</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/梦回2008_/index.html'); return false;" title="梦回2008"><span class="art-date">2024-12-18</span>梦回2008</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/跃向未来_/index.html'); return false;" title="跃向未来"><span class="art-date">2024-12-16</span>跃向未来</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/贤者时刻_/index.html'); return false;" title="贤者时刻"><span class="art-date">2024-12-13</span>贤者时刻</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/哎哟_我去_失算了_/index.html'); return false;" title="哎哟_我去_失算了"><span class="art-date">2024-12-12</span>哎哟_我去_失算了</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/草根的牛市_/index.html'); return false;" title="草根的牛市"><span class="art-date">2024-12-11</span>草根的牛市</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/大水漫灌_/index.html'); return false;" title="大水漫灌"><span class="art-date">2024-12-10</span>大水漫灌</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/我计划落袋为安了_/index.html'); return false;" title="我计划落袋为安了"><span class="art-date">2024-12-09</span>我计划落袋为安了</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/我最看重的三个点_/index.html'); return false;" title="我最看重的三个点"><span class="art-date">2024-12-08</span>我最看重的三个点</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/坐了一回过山车_/index.html'); return false;" title="坐了一回过山车"><span class="art-date">2024-12-06</span>坐了一回过山车</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/等一个上场机会_/index.html'); return false;" title="等一个上场机会"><span class="art-date">2024-12-05</span>等一个上场机会</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/制服的诱惑_/index.html'); return false;" title="制服的诱惑"><span class="art-date">2024-12-03</span>制服的诱惑</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/再也回不去_/index.html'); return false;" title="再也回不去"><span class="art-date">2024-11-30</span>再也回不去</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/如风中年_/index.html'); return false;" title="如风中年"><span class="art-date">2024-11-27</span>如风中年</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/蛮重要的事（可能会被盾）/index.html'); return false;" title="蛮重要的事（可能会被盾）"><span class="art-date">2024-11-23</span>蛮重要的事（可能会被盾）</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/这钱_太烫手了_/index.html'); return false;" title="这钱_太烫手了"><span class="art-date">2024-11-22</span>这钱_太烫手了</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/走过风暴海_/index.html'); return false;" title="走过风暴海"><span class="art-date">2024-11-21</span>走过风暴海</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/涛声依旧_/index.html'); return false;" title="涛声依旧"><span class="art-date">2024-11-20</span>涛声依旧</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/大干一场_/index.html'); return false;" title="大干一场"><span class="art-date">2024-11-18</span>大干一场</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/难比登天_/index.html'); return false;" title="难比登天"><span class="art-date">2024-11-16</span>难比登天</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/废物_又跪了_/index.html'); return false;" title="废物_又跪了"><span class="art-date">2024-11-15</span>废物_又跪了</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/我抄_/index.html'); return false;" title="我抄"><span class="art-date">2024-11-14</span>我抄</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/一切还是老样子_/index.html'); return false;" title="一切还是老样子"><span class="art-date">2024-11-12</span>一切还是老样子</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/创造新历史_/index.html'); return false;" title="创造新历史"><span class="art-date">2024-11-11</span>创造新历史</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/一年将尽_/index.html'); return false;" title="一年将尽"><span class="art-date">2024-11-09</span>一年将尽</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/很重要的一些调整_/index.html'); return false;" title="很重要的一些调整"><span class="art-date">2024-11-08</span>很重要的一些调整</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/狂风暴雨地涨_/index.html'); return false;" title="狂风暴雨地涨"><span class="art-date">2024-11-07</span>狂风暴雨地涨</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/梦醒了_/index.html'); return false;" title="梦醒了"><span class="art-date">2024-11-05</span>梦醒了</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/多数人都是血亏的_/index.html'); return false;" title="多数人都是血亏的"><span class="art-date">2024-11-04</span>多数人都是血亏的</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/他回来了_怎么办_/index.html'); return false;" title="他回来了_怎么办"><span class="art-date">2024-11-01</span>他回来了_怎么办</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/在十月的最后一天_/index.html'); return false;" title="在十月的最后一天"><span class="art-date">2024-10-31</span>在十月的最后一天</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/更辽阔的星辰大海_/index.html'); return false;" title="更辽阔的星辰大海"><span class="art-date">2024-10-30</span>更辽阔的星辰大海</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/这有点东西啊/index.html'); return false;" title="这有点东西啊"><span class="art-date">2024-10-29</span>这有点东西啊</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/来不及想标题了_/index.html'); return false;" title="来不及想标题了"><span class="art-date">2024-10-28</span>来不及想标题了</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/熬到头了_/index.html'); return false;" title="熬到头了"><span class="art-date">2024-10-25</span>熬到头了</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/套利机会_/index.html'); return false;" title="套利机会"><span class="art-date">2024-10-24</span>套利机会</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/最平静的结局_/index.html'); return false;" title="最平静的结局"><span class="art-date">2024-10-23</span>最平静的结局</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/寻找下一张船票_/index.html'); return false;" title="寻找下一张船票"><span class="art-date">2024-10-22</span>寻找下一张船票</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/错的是全世界_/index.html'); return false;" title="错的是全世界"><span class="art-date">2024-10-21</span>错的是全世界</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/商量一件事_/index.html'); return false;" title="商量一件事"><span class="art-date">2024-10-18</span>商量一件事</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/赚钱如流水_/index.html'); return false;" title="赚钱如流水"><span class="art-date">2024-10-17</span>赚钱如流水</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/通道正逐渐收紧_/index.html'); return false;" title="通道正逐渐收紧"><span class="art-date">2024-10-16</span>通道正逐渐收紧</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/把自己安放妥当_/index.html'); return false;" title="把自己安放妥当"><span class="art-date">2024-10-15</span>把自己安放妥当</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/人到中年做_减法__/index.html'); return false;" title="人到中年做_减法"><span class="art-date">2024-10-14</span>人到中年做_减法</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/顺着麦穗找麦田_/index.html'); return false;" title="顺着麦穗找麦田"><span class="art-date">2024-10-11</span>顺着麦穗找麦田</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/不为此刻所困_/index.html'); return false;" title="不为此刻所困"><span class="art-date">2024-10-10</span>不为此刻所困</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/激流缓退_/index.html'); return false;" title="激流缓退"><span class="art-date">2024-10-09</span>激流缓退</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/接下去怎么做_/index.html'); return false;" title="接下去怎么做"><span class="art-date">2024-10-08</span>接下去怎么做</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/无话可说_/index.html'); return false;" title="无话可说"><span class="art-date">2024-10-07</span>无话可说</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/最危险的时刻_/index.html'); return false;" title="最危险的时刻"><span class="art-date">2024-10-03</span>最危险的时刻</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/转折点_/index.html'); return false;" title="转折点"><span class="art-date">2024-10-02</span>转折点</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/疯狂星期一/index.html'); return false;" title="疯狂星期一"><span class="art-date">2024-09-30</span>疯狂星期一</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/下一个风向标_/index.html'); return false;" title="下一个风向标"><span class="art-date">2024-09-29</span>下一个风向标</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/老天赏饭吃_/index.html'); return false;" title="老天赏饭吃"><span class="art-date">2024-09-28</span>老天赏饭吃</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/爱你在心口难开_/index.html'); return false;" title="爱你在心口难开"><span class="art-date">2024-09-27</span>爱你在心口难开</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/勒紧裤腰带_/index.html'); return false;" title="勒紧裤腰带"><span class="art-date">2024-09-26</span>勒紧裤腰带</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/准备迎接惊涛骇浪_/index.html'); return false;" title="准备迎接惊涛骇浪"><span class="art-date">2024-09-25</span>准备迎接惊涛骇浪</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/允许一切发生_/index.html'); return false;" title="允许一切发生"><span class="art-date">2024-09-14</span>允许一切发生</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/新的纪元_/index.html'); return false;" title="新的纪元"><span class="art-date">2024-09-13</span>新的纪元</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/落坨翔子_/index.html'); return false;" title="落坨翔子"><span class="art-date">2024-09-08</span>落坨翔子</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/抄底_急不得_/index.html'); return false;" title="抄底_急不得"><span class="art-date">2024-09-07</span>抄底_急不得</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/如果有明天_/index.html'); return false;" title="如果有明天"><span class="art-date">2024-09-06</span>如果有明天</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/心惊肉跳的时刻/index.html'); return false;" title="心惊肉跳的时刻"><span class="art-date">2024-09-05</span>心惊肉跳的时刻</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/自驱力_/index.html'); return false;" title="自驱力"><span class="art-date">2024-09-04</span>自驱力</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/思路打开了_/index.html'); return false;" title="思路打开了"><span class="art-date">2024-09-03</span>思路打开了</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/更可怕的泡沫_/index.html'); return false;" title="更可怕的泡沫"><span class="art-date">2024-09-01</span>更可怕的泡沫</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/全力倚父_/index.html'); return false;" title="全力倚父"><span class="art-date">2024-08-30</span>全力倚父</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/天黑请闭眼/index.html'); return false;" title="天黑请闭眼"><span class="art-date">2024-08-29</span>天黑请闭眼</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/流水账_/index.html'); return false;" title="流水账"><span class="art-date">2024-08-28</span>流水账</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/一场大冒险_/index.html'); return false;" title="一场大冒险"><span class="art-date">2024-08-27</span>一场大冒险</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/_最重要的一周_/index.html'); return false;" title="_最重要的一周"><span class="art-date">2024-08-26</span>_最重要的一周</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/起风了_/index.html'); return false;" title="起风了"><span class="art-date">2024-08-24</span>起风了</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/蛛丝马迹_/index.html'); return false;" title="蛛丝马迹"><span class="art-date">2024-08-23</span>蛛丝马迹</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/钉在历史的耻辱柱上/index.html'); return false;" title="钉在历史的耻辱柱上"><span class="art-date">2024-08-21</span>钉在历史的耻辱柱上</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/未来_我的选项_/index.html'); return false;" title="未来_我的选项"><span class="art-date">2024-08-20</span>未来_我的选项</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/这事不知该不该说/index.html'); return false;" title="这事不知该不该说"><span class="art-date">2024-08-19</span>这事不知该不该说</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/黎明前的黑暗/index.html'); return false;" title="黎明前的黑暗"><span class="art-date">2024-08-15</span>黎明前的黑暗</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/不知老之将至/index.html'); return false;" title="不知老之将至"><span class="art-date">2024-08-10</span>不知老之将至</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/时代悄悄变了/index.html'); return false;" title="时代悄悄变了"><span class="art-date">2024-08-07</span>时代悄悄变了</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/用自己的眼睛看世界/index.html'); return false;" title="用自己的眼睛看世界"><span class="art-date">2024-08-05</span>用自己的眼睛看世界</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/如履薄冰_/index.html'); return false;" title="如履薄冰"><span class="art-date">2024-08-01</span>如履薄冰</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/一切都是取舍/index.html'); return false;" title="一切都是取舍"><span class="art-date">2024-06-27</span>一切都是取舍</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/认真解释一下这件事/index.html'); return false;" title="认真解释一下这件事"><span class="art-date">2024-06-23</span>认真解释一下这件事</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/问题与答复/index.html'); return false;" title="问题与答复"><span class="art-date">2024-06-21</span>问题与答复</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/穿过冬天_/index.html'); return false;" title="穿过冬天"><span class="art-date">2024-06-20</span>穿过冬天</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/欲说还休/index.html'); return false;" title="欲说还休"><span class="art-date">2024-06-18</span>欲说还休</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/埋在无人问津处/index.html'); return false;" title="埋在无人问津处"><span class="art-date">2024-06-16</span>埋在无人问津处</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/沸水煮青蛙/index.html'); return false;" title="沸水煮青蛙"><span class="art-date">2024-06-13</span>沸水煮青蛙</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/习惯性跑题/index.html'); return false;" title="习惯性跑题"><span class="art-date">2024-06-07</span>习惯性跑题</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/写点旅行感受_/index.html'); return false;" title="写点旅行感受"><span class="art-date">2024-06-05</span>写点旅行感受</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/席地而坐_/index.html'); return false;" title="席地而坐"><span class="art-date">2024-06-03</span>席地而坐</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/拒绝新闻的生活/index.html'); return false;" title="拒绝新闻的生活"><span class="art-date">2024-05-24</span>拒绝新闻的生活</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/一般从来不一般/index.html'); return false;" title="一般从来不一般"><span class="art-date">2024-05-20</span>一般从来不一般</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/放大招_/index.html'); return false;" title="放大招"><span class="art-date">2024-05-16</span>放大招</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/一切都是假象/index.html'); return false;" title="一切都是假象"><span class="art-date">2024-05-05</span>一切都是假象</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/机会_/index.html'); return false;" title="机会"><span class="art-date">2024-05-03</span>机会</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/信息茧房/index.html'); return false;" title="信息茧房"><span class="art-date">2024-05-01</span>信息茧房</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/无题/index.html'); return false;" title="无题"><span class="art-date">2024-04-30</span>无题</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/一些零碎的想法/index.html'); return false;" title="一些零碎的想法"><span class="art-date">2024-04-29</span>一些零碎的想法</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/周末唠唠嗑/index.html'); return false;" title="周末唠唠嗑"><span class="art-date">2024-04-28</span>周末唠唠嗑</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/路径依赖_/index.html'); return false;" title="路径依赖"><span class="art-date">2024-04-25</span>路径依赖</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/摊上这样的孩子_/index.html'); return false;" title="摊上这样的孩子"><span class="art-date">2024-04-24</span>摊上这样的孩子</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/两周年_/index.html'); return false;" title="两周年"><span class="art-date">2024-04-21</span>两周年</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/守住基本盘和_压舱石_/index.html'); return false;" title="守住基本盘和_压舱石"><span class="art-date">2024-04-09</span>守住基本盘和_压舱石</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/前进的方向/index.html'); return false;" title="前进的方向"><span class="art-date">2024-04-08</span>前进的方向</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/春天的迹象/index.html'); return false;" title="春天的迹象"><span class="art-date">2024-04-07</span>春天的迹象</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/熟悉的前奏又响起来了/index.html'); return false;" title="熟悉的前奏又响起来了"><span class="art-date">2024-03-11</span>熟悉的前奏又响起来了</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/瞧_大_骟_人_/index.html'); return false;" title="瞧_大_骟_人"><span class="art-date">2024-03-05</span>瞧_大_骟_人</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/说两句心里话/index.html'); return false;" title="说两句心里话"><span class="art-date">2024-03-01</span>说两句心里话</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/收钱不手软_/index.html'); return false;" title="收钱不手软"><span class="art-date">2024-02-27</span>收钱不手软</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/_祖传秘诀_/index.html'); return false;" title="_祖传秘诀"><span class="art-date">2024-02-19</span>_祖传秘诀</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/_高质量发展__/index.html'); return false;" title="_高质量发展"><span class="art-date">2024-01-22</span>_高质量发展</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/紧急撤离_/index.html'); return false;" title="紧急撤离"><span class="art-date">2024-01-20</span>紧急撤离</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/祖坟在喷火/index.html'); return false;" title="祖坟在喷火"><span class="art-date">2024-01-11</span>祖坟在喷火</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/闭嘴__/index.html'); return false;" title="闭嘴"><span class="art-date">2024-01-09</span>闭嘴</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/算算我今年亏了多少钱_/index.html'); return false;" title="算算我今年亏了多少钱"><span class="art-date">2023-12-28</span>算算我今年亏了多少钱</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/变化真大_/index.html'); return false;" title="变化真大"><span class="art-date">2023-12-20</span>变化真大</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/差点被猪拱了_/index.html'); return false;" title="差点被猪拱了"><span class="art-date">2023-12-17</span>差点被猪拱了</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/祝你好孕_/index.html'); return false;" title="祝你好孕"><span class="art-date">2023-12-15</span>祝你好孕</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/传家宝_/index.html'); return false;" title="传家宝"><span class="art-date">2023-12-07</span>传家宝</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/永不空军_/index.html'); return false;" title="永不空军"><span class="art-date">2023-11-16</span>永不空军</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/上阵父子兵/index.html'); return false;" title="上阵父子兵"><span class="art-date">2023-11-14</span>上阵父子兵</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/搞钱的诱惑/index.html'); return false;" title="搞钱的诱惑"><span class="art-date">2023-09-20</span>搞钱的诱惑</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/一声叹息_/index.html'); return false;" title="一声叹息"><span class="art-date">2023-09-18</span>一声叹息</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/风向标_/index.html'); return false;" title="风向标"><span class="art-date">2023-09-17</span>风向标</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/新的搞钱业务_/index.html'); return false;" title="新的搞钱业务"><span class="art-date">2023-09-11</span>新的搞钱业务</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/让利_/index.html'); return false;" title="让利"><span class="art-date">2023-09-07</span>让利</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/破圈_/index.html'); return false;" title="破圈"><span class="art-date">2023-09-04</span>破圈</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/boom_完犊子/index.html'); return false;" title="boom_完犊子"><span class="art-date">2023-09-03</span>boom_完犊子</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/踩坑_/index.html'); return false;" title="踩坑"><span class="art-date">2023-09-02</span>踩坑</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/职业扛雷_/index.html'); return false;" title="职业扛雷"><span class="art-date">2023-09-01</span>职业扛雷</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/大事即将落地_/index.html'); return false;" title="大事即将落地"><span class="art-date">2023-08-31</span>大事即将落地</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/一声吼_/index.html'); return false;" title="一声吼"><span class="art-date">2023-08-25</span>一声吼</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/急转直下_/index.html'); return false;" title="急转直下"><span class="art-date">2023-08-24</span>急转直下</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/种地_/index.html'); return false;" title="种地"><span class="art-date">2023-08-23</span>种地</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/栖息_/index.html'); return false;" title="栖息"><span class="art-date">2023-08-22</span>栖息</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/奶_/index.html'); return false;" title="奶"><span class="art-date">2023-08-21</span>奶</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/低调_/index.html'); return false;" title="低调"><span class="art-date">2023-08-20</span>低调</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/太费爹了/index.html'); return false;" title="太费爹了"><span class="art-date">2023-08-19</span>太费爹了</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/_垫_大欺客/index.html'); return false;" title="_垫_大欺客"><span class="art-date">2023-08-18</span>_垫_大欺客</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/最好的下一步/index.html'); return false;" title="最好的下一步"><span class="art-date">2023-08-17</span>最好的下一步</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/推演_/index.html'); return false;" title="推演"><span class="art-date">2023-08-16</span>推演</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/碧桂园还有救吗_/index.html'); return false;" title="碧桂园还有救吗"><span class="art-date">2023-08-14</span>碧桂园还有救吗</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/虚脱了_/index.html'); return false;" title="虚脱了"><span class="art-date">2023-08-13</span>虚脱了</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/三次创业_/index.html'); return false;" title="三次创业"><span class="art-date">2023-08-12</span>三次创业</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/搞钱_/index.html'); return false;" title="搞钱"><span class="art-date">2023-08-11</span>搞钱</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/吃白食_/index.html'); return false;" title="吃白食"><span class="art-date">2023-08-10</span>吃白食</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/浪里个浪_/index.html'); return false;" title="浪里个浪"><span class="art-date">2023-08-09</span>浪里个浪</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/大写的尴尬/index.html'); return false;" title="大写的尴尬"><span class="art-date">2023-08-02</span>大写的尴尬</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/历史性时刻_/index.html'); return false;" title="历史性时刻"><span class="art-date">2023-08-01</span>历史性时刻</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/暴揍_/index.html'); return false;" title="暴揍"><span class="art-date">2023-07-31</span>暴揍</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/捂股丰登/index.html'); return false;" title="捂股丰登"><span class="art-date">2023-07-30</span>捂股丰登</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/一场游戏/index.html'); return false;" title="一场游戏"><span class="art-date">2023-07-29</span>一场游戏</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/贼猛_/index.html'); return false;" title="贼猛"><span class="art-date">2023-07-28</span>贼猛</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/转轨_/index.html'); return false;" title="转轨"><span class="art-date">2023-07-26</span>转轨</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/双喜临门_/index.html'); return false;" title="双喜临门"><span class="art-date">2023-07-25</span>双喜临门</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/暴富_/index.html'); return false;" title="暴富"><span class="art-date">2023-07-23</span>暴富</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/养猪呢_/index.html'); return false;" title="养猪呢"><span class="art-date">2023-07-22</span>养猪呢</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/挑刺_/index.html'); return false;" title="挑刺"><span class="art-date">2023-07-21</span>挑刺</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/我的2023/index.html'); return false;" title="我的2023"><span class="art-date">2023-07-20</span>我的2023</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/发了点小财/index.html'); return false;" title="发了点小财"><span class="art-date">2022-12-26</span>发了点小财</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/利好/index.html'); return false;" title="利好"><span class="art-date">2022-11-28</span>利好</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/天微亮/index.html'); return false;" title="天微亮"><span class="art-date">2022-11-11</span>天微亮</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/预判/index.html'); return false;" title="预判"><span class="art-date">2022-11-10</span>预判</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/蹦迪_/index.html'); return false;" title="蹦迪"><span class="art-date">2022-11-09</span>蹦迪</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/狗血_/index.html'); return false;" title="狗血"><span class="art-date">2022-11-08</span>狗血</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/挨打天团/index.html'); return false;" title="挨打天团"><span class="art-date">2022-11-07</span>挨打天团</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/粪坑拾豆/index.html'); return false;" title="粪坑拾豆"><span class="art-date">2022-11-06</span>粪坑拾豆</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/想不出标题/index.html'); return false;" title="想不出标题"><span class="art-date">2022-11-05</span>想不出标题</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/AMD大涨37_5__得益于它与OpenAI牵手_达成一项多年期协议___OpenAI采购6吉瓦的AMD芯片_这笔合同对应约600亿美元_AMD的净收入会在700_800亿美元左右_相当于AMD目前约/index.html'); return false;" title="AMD大涨37_5__得益于它与OpenAI牵手_达成一项多年期协议___OpenAI采购6吉瓦的AMD芯片_这笔合同对应约600亿美元_AMD的净收入会在700_800亿美元左右_相当于AMD目前约"><span class="art-date unknown">--</span>AMD大涨37_5__得益于它与OpenAI牵手_达成一项多年期协议___OpenAI采购6吉瓦的AMD芯片_这笔合同对应约600亿美元_AMD的净收入会在700_800亿美元左右_相当于AMD目前约</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/_出海_已成趋势_对企业和中高净值群体来说_已从未来_可选项_变成了_必选项__但因各种原因_过程坎坷_波折_很难顺利___这几年时间我时常在世界各地走走看看_这段时间正在新西兰_国人和企业在这面临的/index.html'); return false;" title="_出海_已成趋势_对企业和中高净值群体来说_已从未来_可选项_变成了_必选项__但因各种原因_过程坎坷_波折_很难顺利___这几年时间我时常在世界各地走走看看_这段时间正在新西兰_国人和企业在这面临的"><span class="art-date unknown">--</span>_出海_已成趋势_对企业和中高净值群体来说_已从未来_可选项_变成了_必选项__但因各种原因_过程坎坷_波折_很难顺利___这几年时间我时常在世界各地走走看看_这段时间正在新西兰_国人和企业在这面临的</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/不经意间错过_/index.html'); return false;" title="不经意间错过"><span class="art-date unknown">--</span>不经意间错过</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/之前写过我喜欢买的个股分为两类___改变未来的科技龙头股_以及不被未来改变的消费_避险股___前者以美股七巨头_台积电_博通等个股为代表_后者以可口可乐_伯克希尔_宽基指数ETF_不动产_美元类保险等/index.html'); return false;" title="之前写过我喜欢买的个股分为两类___改变未来的科技龙头股_以及不被未来改变的消费_避险股___前者以美股七巨头_台积电_博通等个股为代表_后者以可口可乐_伯克希尔_宽基指数ETF_不动产_美元类保险等"><span class="art-date unknown">--</span>之前写过我喜欢买的个股分为两类___改变未来的科技龙头股_以及不被未来改变的消费_避险股___前者以美股七巨头_台积电_博通等个股为代表_后者以可口可乐_伯克希尔_宽基指数ETF_不动产_美元类保险等</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/写了一段很重要的评论_看法_审核无法通过_发送失败___简单来说_一句话_全面_有序脱钩是趋势___老美的贸易代表接受媒体采访时说的那三点_有兴趣的可以自己去看看_我这里没法写（发送失败的核心原因）_/index.html'); return false;" title="写了一段很重要的评论_看法_审核无法通过_发送失败___简单来说_一句话_全面_有序脱钩是趋势___老美的贸易代表接受媒体采访时说的那三点_有兴趣的可以自己去看看_我这里没法写（发送失败的核心原因）"><span class="art-date unknown">--</span>写了一段很重要的评论_看法_审核无法通过_发送失败___简单来说_一句话_全面_有序脱钩是趋势___老美的贸易代表接受媒体采访时说的那三点_有兴趣的可以自己去看看_我这里没法写（发送失败的核心原因）</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/加密货币也爆跌_大饼这两天跌了10___最大的平台饼跌了15___我得益于前两三个月转向防守型_没有任何损失___之前转向防守型_买入美债相关的链上资产_即便现在收益率已经从4_降低到3_56__我也/index.html'); return false;" title="加密货币也爆跌_大饼这两天跌了10___最大的平台饼跌了15___我得益于前两三个月转向防守型_没有任何损失___之前转向防守型_买入美债相关的链上资产_即便现在收益率已经从4_降低到3_56__我也"><span class="art-date unknown">--</span>加密货币也爆跌_大饼这两天跌了10___最大的平台饼跌了15___我得益于前两三个月转向防守型_没有任何损失___之前转向防守型_买入美债相关的链上资产_即便现在收益率已经从4_降低到3_56__我也</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/在_底层互掐_中产内卷_富人联姻_现象非常普遍的时代_我很佩服两种人_穷不丧志_富不躺平_但这不意味着能瞎折腾_折腾需有_远见__找对方向_看清趋势_顺势而为___改革开放四十余年_主流叙事一直是奋斗/index.html'); return false;" title="在_底层互掐_中产内卷_富人联姻_现象非常普遍的时代_我很佩服两种人_穷不丧志_富不躺平_但这不意味着能瞎折腾_折腾需有_远见__找对方向_看清趋势_顺势而为___改革开放四十余年_主流叙事一直是奋斗"><span class="art-date unknown">--</span>在_底层互掐_中产内卷_富人联姻_现象非常普遍的时代_我很佩服两种人_穷不丧志_富不躺平_但这不意味着能瞎折腾_折腾需有_远见__找对方向_看清趋势_顺势而为___改革开放四十余年_主流叙事一直是奋斗</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/币圈又是_血流成河_的惨烈走势_大饼跌至9_4万美元支撑位_二饼跌至3050美元_最大的平台饼跌至900美元___我今年对币圈的判断是_没有行情__结果它连大A都没有跑赢_这两个月常说大饼处于牛市尾巴/index.html'); return false;" title="币圈又是_血流成河_的惨烈走势_大饼跌至9_4万美元支撑位_二饼跌至3050美元_最大的平台饼跌至900美元___我今年对币圈的判断是_没有行情__结果它连大A都没有跑赢_这两个月常说大饼处于牛市尾巴"><span class="art-date unknown">--</span>币圈又是_血流成河_的惨烈走势_大饼跌至9_4万美元支撑位_二饼跌至3050美元_最大的平台饼跌至900美元___我今年对币圈的判断是_没有行情__结果它连大A都没有跑赢_这两个月常说大饼处于牛市尾巴</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/开始抄底了_/index.html'); return false;" title="开始抄底了"><span class="art-date unknown">--</span>开始抄底了</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/我要休息一段时间了_/index.html'); return false;" title="我要休息一段时间了"><span class="art-date unknown">--</span>我要休息一段时间了</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/日本2025年第二位诺奖得主诞生_日本著名化学家_京都大学的北川进教授___咱们官媒曾在2002年1月6日刊发过_对日本在2001年3月第二个科学技术基本计划中提出_50年30个诺贝尔奖_的评价_口出/index.html'); return false;" title="日本2025年第二位诺奖得主诞生_日本著名化学家_京都大学的北川进教授___咱们官媒曾在2002年1月6日刊发过_对日本在2001年3月第二个科学技术基本计划中提出_50年30个诺贝尔奖_的评价_口出"><span class="art-date unknown">--</span>日本2025年第二位诺奖得主诞生_日本著名化学家_京都大学的北川进教授___咱们官媒曾在2002年1月6日刊发过_对日本在2001年3月第二个科学技术基本计划中提出_50年30个诺贝尔奖_的评价_口出</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/日经225这几天涨麻了_这是资本市场对新任女首相在用脚投票___我看了一眼账户_自从今年4月低点买入至今_大盘已经涨了56_左右_我买的组合整体也相差无几___之前写过_我在日本的投资组合策略_除了少/index.html'); return false;" title="日经225这几天涨麻了_这是资本市场对新任女首相在用脚投票___我看了一眼账户_自从今年4月低点买入至今_大盘已经涨了56_左右_我买的组合整体也相差无几___之前写过_我在日本的投资组合策略_除了少"><span class="art-date unknown">--</span>日经225这几天涨麻了_这是资本市场对新任女首相在用脚投票___我看了一眼账户_自从今年4月低点买入至今_大盘已经涨了56_左右_我买的组合整体也相差无几___之前写过_我在日本的投资组合策略_除了少</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/早上孩子们在农场里玩_老大带着老三去水边钓鱼_老二坐在身边陪我闲聊_她问我对于做投资来说_最重要有哪些点_她最近开始对这些产生了兴趣___我告诉他_首先是要专业_做任何一个行业都需要投入大量的时间_精/index.html'); return false;" title="早上孩子们在农场里玩_老大带着老三去水边钓鱼_老二坐在身边陪我闲聊_她问我对于做投资来说_最重要有哪些点_她最近开始对这些产生了兴趣___我告诉他_首先是要专业_做任何一个行业都需要投入大量的时间_精"><span class="art-date unknown">--</span>早上孩子们在农场里玩_老大带着老三去水边钓鱼_老二坐在身边陪我闲聊_她问我对于做投资来说_最重要有哪些点_她最近开始对这些产生了兴趣___我告诉他_首先是要专业_做任何一个行业都需要投入大量的时间_精</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/美股大暴跌_纳指跌了3_56__标普500跌了2_71____原因是关税战再起波澜_川普威胁将大幅提高关税_对咱们所有商品征收大规模关税_以反制咱们实施更严格的稀土矿物出口管制措施___之前多次写过的/index.html'); return false;" title="美股大暴跌_纳指跌了3_56__标普500跌了2_71____原因是关税战再起波澜_川普威胁将大幅提高关税_对咱们所有商品征收大规模关税_以反制咱们实施更严格的稀土矿物出口管制措施___之前多次写过的"><span class="art-date unknown">--</span>美股大暴跌_纳指跌了3_56__标普500跌了2_71____原因是关税战再起波澜_川普威胁将大幅提高关税_对咱们所有商品征收大规模关税_以反制咱们实施更严格的稀土矿物出口管制措施___之前多次写过的</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/美股大涨_标普500上涨1_55__纳指暴涨2_69__未来数周_美股预计将持续震荡___目前处于人工智能浪潮中前期往中期过渡的阶段_前期的主要受益股是英伟达_博通_AMD这类芯片_铲子股__其次是微/index.html'); return false;" title="美股大涨_标普500上涨1_55__纳指暴涨2_69__未来数周_美股预计将持续震荡___目前处于人工智能浪潮中前期往中期过渡的阶段_前期的主要受益股是英伟达_博通_AMD这类芯片_铲子股__其次是微"><span class="art-date unknown">--</span>美股大涨_标普500上涨1_55__纳指暴涨2_69__未来数周_美股预计将持续震荡___目前处于人工智能浪潮中前期往中期过渡的阶段_前期的主要受益股是英伟达_博通_AMD这类芯片_铲子股__其次是微</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/美股大跌_纳指跌1_9__标普500跌1_12__对应了昨天说的那个_补缺口____科技股领跌_AMD暴跌7_27__特斯拉下跌3_5__英伟达下跌3_65__亚马逊下跌2_86__Meta下跌2_6/index.html'); return false;" title="美股大跌_纳指跌1_9__标普500跌1_12__对应了昨天说的那个_补缺口____科技股领跌_AMD暴跌7_27__特斯拉下跌3_5__英伟达下跌3_65__亚马逊下跌2_86__Meta下跌2_6"><span class="art-date unknown">--</span>美股大跌_纳指跌1_9__标普500跌1_12__对应了昨天说的那个_补缺口____科技股领跌_AMD暴跌7_27__特斯拉下跌3_5__英伟达下跌3_65__亚马逊下跌2_86__Meta下跌2_6</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/美股崩了个大的_截止目前_纳指100暴跌2_54__标普500大跌1_87__亚马逊公布财报_资本支出激增50__盘后暴跌15__微软暴跌5_18____亚马逊再跌7美元_我准备加仓一些_补进来_微软/index.html'); return false;" title="美股崩了个大的_截止目前_纳指100暴跌2_54__标普500大跌1_87__亚马逊公布财报_资本支出激增50__盘后暴跌15__微软暴跌5_18____亚马逊再跌7美元_我准备加仓一些_补进来_微软"><span class="art-date unknown">--</span>美股崩了个大的_截止目前_纳指100暴跌2_54__标普500大跌1_87__亚马逊公布财报_资本支出激增50__盘后暴跌15__微软暴跌5_18____亚马逊再跌7美元_我准备加仓一些_补进来_微软</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/美股暴跌_纳指下跌2_29__标普500下跌1_66__科技股领跌_伯克希尔和强生这类避险股上涨_礼来涨势不错_两个减仓节点被触发___今年整体收益率不错_最大的账户（进取型）收益率超118___得益/index.html'); return false;" title="美股暴跌_纳指下跌2_29__标普500下跌1_66__科技股领跌_伯克希尔和强生这类避险股上涨_礼来涨势不错_两个减仓节点被触发___今年整体收益率不错_最大的账户（进取型）收益率超118___得益"><span class="art-date unknown">--</span>美股暴跌_纳指下跌2_29__标普500下跌1_66__科技股领跌_伯克希尔和强生这类避险股上涨_礼来涨势不错_两个减仓节点被触发___今年整体收益率不错_最大的账户（进取型）收益率超118___得益</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/美股现在挺无聊的_常常开盘是红的_你还以为东升西落_结果_收盘连大姨妈都成绿的了___这轮下跌纳指最高下跌13___标普500下跌9_8____我除了捞这俩宽基指数ETF进来_还加仓了微软_英伟达_少/index.html'); return false;" title="美股现在挺无聊的_常常开盘是红的_你还以为东升西落_结果_收盘连大姨妈都成绿的了___这轮下跌纳指最高下跌13___标普500下跌9_8____我除了捞这俩宽基指数ETF进来_还加仓了微软_英伟达_少"><span class="art-date unknown">--</span>美股现在挺无聊的_常常开盘是红的_你还以为东升西落_结果_收盘连大姨妈都成绿的了___这轮下跌纳指最高下跌13___标普500下跌9_8____我除了捞这俩宽基指数ETF进来_还加仓了微软_英伟达_少</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/美股继续上涨_强势得一塌糊涂__随着这段时间个股的涨跌不同_我持仓的情况有些变化_最大的账户（进取型）持仓的个股排序变成了_英伟达_微软_苹果_台积电_Meta_谷歌_亚马逊_特斯拉_博通_AMD__/index.html'); return false;" title="美股继续上涨_强势得一塌糊涂__随着这段时间个股的涨跌不同_我持仓的情况有些变化_最大的账户（进取型）持仓的个股排序变成了_英伟达_微软_苹果_台积电_Meta_谷歌_亚马逊_特斯拉_博通_AMD"><span class="art-date unknown">--</span>美股继续上涨_强势得一塌糊涂__随着这段时间个股的涨跌不同_我持仓的情况有些变化_最大的账户（进取型）持仓的个股排序变成了_英伟达_微软_苹果_台积电_Meta_谷歌_亚马逊_特斯拉_博通_AMD</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/美股继续下跌_我满心欢喜_按照原计划的既定节奏逐步加仓___纳指100从最高点到现在_跌了近13__离我预期的17_很近_如果能有20__的跌幅_就再完美不过了_标普500抗跌些_跌幅9___我的预期/index.html'); return false;" title="美股继续下跌_我满心欢喜_按照原计划的既定节奏逐步加仓___纳指100从最高点到现在_跌了近13__离我预期的17_很近_如果能有20__的跌幅_就再完美不过了_标普500抗跌些_跌幅9___我的预期"><span class="art-date unknown">--</span>美股继续下跌_我满心欢喜_按照原计划的既定节奏逐步加仓___纳指100从最高点到现在_跌了近13__离我预期的17_很近_如果能有20__的跌幅_就再完美不过了_标普500抗跌些_跌幅9___我的预期</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/美股这段时间很震荡_但防守型资产普遍上涨较凶猛_我防守型账户中除伯克希尔外_可口可乐_强生_SCHD_VYM等_涨幅大多数在18___美债收益率也提升了不少___现在防守型账户的占比_已经和进取型账户/index.html'); return false;" title="美股这段时间很震荡_但防守型资产普遍上涨较凶猛_我防守型账户中除伯克希尔外_可口可乐_强生_SCHD_VYM等_涨幅大多数在18___美债收益率也提升了不少___现在防守型账户的占比_已经和进取型账户"><span class="art-date unknown">--</span>美股这段时间很震荡_但防守型资产普遍上涨较凶猛_我防守型账户中除伯克希尔外_可口可乐_强生_SCHD_VYM等_涨幅大多数在18___美债收益率也提升了不少___现在防守型账户的占比_已经和进取型账户</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/英伟达190减仓5_顺利触发_后续还有195和200各减仓5_两个设置___这段时间带娃们在日本走走_昨晚跟软银的一位朋友在居酒屋碰面_他们高管团队刚主导了一场OpenAI的股权收购_从OpenAI员/index.html'); return false;" title="英伟达190减仓5_顺利触发_后续还有195和200各减仓5_两个设置___这段时间带娃们在日本走走_昨晚跟软银的一位朋友在居酒屋碰面_他们高管团队刚主导了一场OpenAI的股权收购_从OpenAI员"><span class="art-date unknown">--</span>英伟达190减仓5_顺利触发_后续还有195和200各减仓5_两个设置___这段时间带娃们在日本走走_昨晚跟软银的一位朋友在居酒屋碰面_他们高管团队刚主导了一场OpenAI的股权收购_从OpenAI员</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/被人讨厌不是缺点_想被所有人喜欢才是有毛病_假期快到了_如今这环境_回家要慎言_别人说什么_有不认同的_打哈哈就过去了_别去争执___现在的舆论_很流行对某类群体污名化_比如海外生活和留学群体_再比如/index.html'); return false;" title="被人讨厌不是缺点_想被所有人喜欢才是有毛病_假期快到了_如今这环境_回家要慎言_别人说什么_有不认同的_打哈哈就过去了_别去争执___现在的舆论_很流行对某类群体污名化_比如海外生活和留学群体_再比如"><span class="art-date unknown">--</span>被人讨厌不是缺点_想被所有人喜欢才是有毛病_假期快到了_如今这环境_回家要慎言_别人说什么_有不认同的_打哈哈就过去了_别去争执___现在的舆论_很流行对某类群体污名化_比如海外生活和留学群体_再比如</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/过去20小时_对币圈的有些人来说_堪称煎熬_惊魂_USDX暴雷_事发突然_投资者只能连夜抢着赎回_能捞回多少是多少___我朋友也有一些在里面_花了一晚上时间连夜都抢出来了_幸运至极_比较惨的_是那些家/index.html'); return false;" title="过去20小时_对币圈的有些人来说_堪称煎熬_惊魂_USDX暴雷_事发突然_投资者只能连夜抢着赎回_能捞回多少是多少___我朋友也有一些在里面_花了一晚上时间连夜都抢出来了_幸运至极_比较惨的_是那些家"><span class="art-date unknown">--</span>过去20小时_对币圈的有些人来说_堪称煎熬_惊魂_USDX暴雷_事发突然_投资者只能连夜抢着赎回_能捞回多少是多少___我朋友也有一些在里面_花了一晚上时间连夜都抢出来了_幸运至极_比较惨的_是那些家</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/这一波市场大跌_之前已经写过_重点会在11月1日以后_详情见__一切自有答案_____币圈今天血流成河_我在半个月前也写过预见和应对策略_币圈的应对和防御型的构建___多看历史文章的好处就在这_能提前/index.html'); return false;" title="这一波市场大跌_之前已经写过_重点会在11月1日以后_详情见__一切自有答案_____币圈今天血流成河_我在半个月前也写过预见和应对策略_币圈的应对和防御型的构建___多看历史文章的好处就在这_能提前"><span class="art-date unknown">--</span>这一波市场大跌_之前已经写过_重点会在11月1日以后_详情见__一切自有答案_____币圈今天血流成河_我在半个月前也写过预见和应对策略_币圈的应对和防御型的构建___多看历史文章的好处就在这_能提前</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/这两天在新加坡走了走_跟一些老朋友碰面_了解他们的动向_收获不小_挺喜欢这样的交流___高净值群体_目前因为新加坡家办趋严等原因_资金部分回流香港_部分流向老美和日本___回流香港的资金以5000万内/index.html'); return false;" title="这两天在新加坡走了走_跟一些老朋友碰面_了解他们的动向_收获不小_挺喜欢这样的交流___高净值群体_目前因为新加坡家办趋严等原因_资金部分回流香港_部分流向老美和日本___回流香港的资金以5000万内"><span class="art-date unknown">--</span>这两天在新加坡走了走_跟一些老朋友碰面_了解他们的动向_收获不小_挺喜欢这样的交流___高净值群体_目前因为新加坡家办趋严等原因_资金部分回流香港_部分流向老美和日本___回流香港的资金以5000万内</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/这些天筹备去欧洲旅行的事_基本上不会有更新_新来的读者可以看看历史文章_我做了一些集合_比如_投资心得_还有_育儿经验_以及_历史文章等_最后一个包含了部分前两者的内容_但不是全部__另外_不要沉迷宏/index.html'); return false;" title="这些天筹备去欧洲旅行的事_基本上不会有更新_新来的读者可以看看历史文章_我做了一些集合_比如_投资心得_还有_育儿经验_以及_历史文章等_最后一个包含了部分前两者的内容_但不是全部__另外_不要沉迷宏"><span class="art-date unknown">--</span>这些天筹备去欧洲旅行的事_基本上不会有更新_新来的读者可以看看历史文章_我做了一些集合_比如_投资心得_还有_育儿经验_以及_历史文章等_最后一个包含了部分前两者的内容_但不是全部__另外_不要沉迷宏</a>
+                <a class="sidebar-link" href="#" onclick="openArticle(this, '03其他/黄金和白银大跌_跌得挺好的_前天提示过风险市场越疯狂_越要冷静（看这里）_问的人特别多_我的回答都是_超过5000美元就看不懂___不要追高_除非能承受50_的亏损____黄金再怎么贵重_本质上最核心/index.html'); return false;" title="黄金和白银大跌_跌得挺好的_前天提示过风险市场越疯狂_越要冷静（看这里）_问的人特别多_我的回答都是_超过5000美元就看不懂___不要追高_除非能承受50_的亏损____黄金再怎么贵重_本质上最核心"><span class="art-date unknown">--</span>黄金和白银大跌_跌得挺好的_前天提示过风险市场越疯狂_越要冷静（看这里）_问的人特别多_我的回答都是_超过5000美元就看不懂___不要追高_除非能承受50_的亏损____黄金再怎么贵重_本质上最核心</a>
+                </div>
+            <div class="sidebar-no-result" id="sidebarNoResult">没有找到匹配的文章</div>
+        </div>
+    </div>
+
+    <!-- 右侧内容区 -->
+    <div class="content">
+        <div class="content-header" id="contentHeader">
+            <strong id="contentTitle"></strong>
+            <span id="contentDate"></span>
+            <a href="#" id="contentOpenLink" target="_blank"
+               style="margin-left:auto; font-size:0.82rem; color:#1a1a2e; display:none;">
+               在新窗口打开 ↗</a>
+        </div>
+        <div class="welcome" id="welcome">
+            <span>📖</span>
+            从左侧选择一篇文章开始阅读
+        </div>
+        <iframe class="content-frame" id="contentFrame" style="display:none;"></iframe>
+    </div>
+
+</div>
+
+<script>
+    let activeCategory = '投资心得';
+    let activeLink = null;
+
+    // 切换分类
+    function switchCat(btn, catName) {
+        // 切换标签按钮
+        document.querySelectorAll('.tab-btn').forEach(
+            b => b.classList.remove('active')
+        );
+        btn.classList.add('active');
+        // 切换侧边栏列表
+        document.querySelectorAll('.sidebar-list').forEach(
+            d => d.style.display = 'none'
+        );
+        document.getElementById('list-' + catName).style.display = 'flex';
+        activeCategory = catName;
+        // 清空搜索
+        document.getElementById('sidebarSearch').value = '';
+        resetSidebarLinks(catName);
+        // 清除当前选中
+        if (activeLink) {
+            activeLink.classList.remove('active');
+            activeLink = null;
+        }
+        // 自动打开本分类下第一篇文章
+        var firstLink = document.querySelector('#list-' + catName + ' .sidebar-link');
+        if (firstLink) {
+            firstLink.click();
+        } else {
+            document.getElementById('welcome').style.display = 'flex';
+            document.getElementById('contentFrame').style.display = 'none';
+            document.getElementById('contentHeader').classList.remove('show');
+        }
+    }
+
+    // 打开文章
+    function openArticle(linkEl, path) {
+        if (activeLink) activeLink.classList.remove('active');
+        linkEl.classList.add('active');
+        activeLink = linkEl;
+        const iframe = document.getElementById('contentFrame');
+        iframe.src = path;
+        iframe.style.display = 'block';
+        document.getElementById('welcome').style.display = 'none';
+        // 更新 header 信息
+        const header = document.getElementById('contentHeader');
+        header.classList.add('show');
+        document.getElementById('contentTitle').textContent = linkEl.title || linkEl.textContent;
+        document.getElementById('contentDate').textContent =
+            (linkEl.querySelector('.art-date') || {}).textContent || '';
+        const openLink = document.getElementById('contentOpenLink');
+        openLink.href = path;
+        openLink.style.display = 'inline';
+    }
+
+    // 侧边栏搜索过滤
+    function filterSidebar() {
+        const keyword = document.getElementById('sidebarSearch')
+                          .value.trim().toLowerCase();
+        const list = document.getElementById('list-' + activeCategory);
+        const links = list.querySelectorAll('.sidebar-link');
+        let visible = 0;
+        links.forEach(link => {
+            if (!keyword || link.textContent.toLowerCase().includes(keyword)) {
+                link.style.display = '';
+                visible++;
+            } else {
+                link.style.display = 'none';
+            }
+        });
+        document.getElementById('sidebarNoResult').style.display =
+            visible === 0 ? 'block' : 'none';
+    }
+
+    // 重置侧边栏链接可见性
+    function resetSidebarLinks(catName) {
+        const list = document.getElementById('list-' + catName);
+        list.querySelectorAll('.sidebar-link').forEach(
+            a => a.style.display = ''
+        );
+        document.getElementById('sidebarNoResult').style.display = 'none';
+    }
+
+    // 自动打开默认分类的第一篇文章
+    document.addEventListener('DOMContentLoaded', function() {
+        var firstLink = document.querySelector('#list-' + activeCategory + ' .sidebar-link');
+        if (firstLink) {
+            firstLink.click();
+        }
+    });
+</script>
+
+</body>
+</html>

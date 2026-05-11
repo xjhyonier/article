@@ -280,6 +280,88 @@
         }
         .welcome span { font-size: 3rem; opacity: 0.7; }
 
+        /* ── 笔记面板 ── */
+        .notes-toggle-btn {
+            display: none;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 18px;
+            border: none;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            font-size: 0.82rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-radius: 8px 8px 0 0;
+            flex-shrink: 0;
+            font-weight: 500;
+            letter-spacing: 0.3px;
+        }
+        .notes-toggle-btn.show { display: flex; }
+        .notes-toggle-btn:hover { filter: brightness(1.08); transform: translateY(-1px); }
+        .notes-toggle-btn.active { border-radius: 8px 8px 0 0; }
+        .notes-panel {
+            display: none;
+            flex-direction: column;
+            height: 160px;
+            border-top: 1px solid #e8ecf0;
+            background: #f7f9fc;
+            flex-shrink: 0;
+            transition: height 0.25s ease;
+        }
+        .notes-panel.show { display: flex; }
+        .notes-panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 6px 16px;
+            font-size: 0.78rem;
+            color: #8a94a6;
+            background: #eef1f7;
+            border-bottom: 1px solid #e0e5ee;
+        }
+        .notes-panel-header .saved-msg {
+            opacity: 0;
+            transition: opacity 0.3s;
+            color: #52c41a;
+            font-weight: 500;
+        }
+        .notes-panel-header .saved-msg.show { opacity: 1; }
+        .notes-clear-btn {
+            background: none;
+            border: none;
+            color: #b0b8c8;
+            cursor: pointer;
+            font-size: 0.75rem;
+            transition: color 0.15s;
+        }
+        .notes-clear-btn:hover { color: #e74c3c; }
+        .notes-textarea {
+            flex: 1;
+            border: none;
+            outline: none;
+            resize: none;
+            padding: 10px 16px;
+            font-size: 0.85rem;
+            font-family: inherit;
+            line-height: 1.6;
+            background: transparent;
+            color: #3a3f4b;
+        }
+        .notes-textarea::placeholder { color: #b8c2d0; }
+
+        /* 有笔记的文章 - 侧边栏指示点 */
+        .sidebar-link .note-dot {
+            display: none;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #667eea;
+            flex-shrink: 0;
+            margin-left: auto;
+        }
+        .sidebar-link.has-note .note-dot { display: block; }
+
         /* ── 响应式：小屏幕侧边栏收起为可折叠面板 ── */
         @media (max-width: 700px) {
             .main { flex-direction: column; }
@@ -329,6 +411,49 @@
             /* 搜索框样式微调 */
             .sidebar-header { padding: 10px 12px 8px; flex-shrink: 0; }
             .sidebar-search { padding: 8px 10px 8px 32px; font-size: 0.85rem; }
+
+            /* 手机端：笔记面板适配 */
+            .notes-toggle-btn {
+                border-radius: 0;
+                justify-content: center;
+                padding: 10px 18px;
+            }
+            .notes-toggle-btn#notesToggleBtn {
+                /* 手机端隐藏顶部按钮，只保留底部按钮 */
+                display: none !important;
+            }
+            .notes-toggle-btn#notesToggleBtnBottom {
+                /* 底部按钮在内容区，手机端全宽显示 */
+                width: 100%;
+                border-radius: 0;
+                display: none;
+            }
+            .notes-toggle-btn#notesToggleBtnBottom.show {
+                display: flex !important;
+            }
+            .notes-panel {
+                height: 180px;
+                max-height: 30vh;
+            }
+            .notes-textarea {
+                font-size: 0.82rem;
+                padding: 8px 12px;
+            }
+            .notes-panel-header {
+                padding: 5px 12px;
+                font-size: 0.72rem;
+            }
+
+            /* 手机端：内容区当笔记面板打开时需要调整 */
+            .content-wrapper {
+                flex: 1;
+                min-height: 0;
+            }
+
+            /* 手机端：iframe 高度自适应 */
+            .content-frame {
+                min-height: 200px;
+            }
         }
 
         /* 手机端展开/收起按钮 */
@@ -801,6 +926,7 @@
             <a href="#" id="contentOpenLink" target="_blank"
                style="margin-left:auto; font-size:0.82rem; color:#1a1a2e; display:none;">
                在新窗口打开 ↗</a>
+            <button class="notes-toggle-btn" id="notesToggleBtn" onclick="toggleNotes()" title="打开笔记">📝 笔记</button>
         </div>
         <div class="welcome" id="welcome">
             <span>📖</span>
@@ -813,6 +939,18 @@
             </div>
             <iframe class="content-frame" id="contentFrame" onload="hideLoading()"></iframe>
         </div>
+
+        <!-- 笔记面板 -->
+        <button class="notes-toggle-btn" id="notesToggleBtnBottom" onclick="toggleNotes()" title="打开笔记">📝 笔记</button>
+        <div class="notes-panel" id="notesPanel">
+            <div class="notes-panel-header">
+                <span>📝 阅读笔记（仅自己可见）</span>
+                <span class="saved-msg" id="notesSavedMsg">已保存</span>
+                <button class="notes-clear-btn" onclick="clearNote()">清空</button>
+            </div>
+            <textarea class="notes-textarea" id="notesTextarea" oninput="onNoteInput()" placeholder="在这里写笔记、感想、摘要..."></textarea>
+        </div>
+
     </div>
 
 </div>
@@ -901,6 +1039,156 @@
                 '<span class="' + dateClass + '">' + dateText + '</span>' + title +
                 '</span>';
             container.appendChild(a);
+        });
+    }
+
+
+    // ── 笔记功能（localStorage） ──
+    const NOTES_KEY = 'article_notes';
+    let notesDebounceTimer = null;
+    let currentNotePath = null;
+
+    function getNotesObj() {
+        try { return JSON.parse(localStorage.getItem(NOTES_KEY)) || {}; }
+        catch { return {}; }
+    }
+    function saveNotesObj(obj) {
+        localStorage.setItem(NOTES_KEY, JSON.stringify(obj));
+    }
+
+    function getNote(path) {
+        return getNotesObj()[path] || '';
+    }
+
+    function saveNote(path, text) {
+        const notes = getNotesObj();
+        if (text.trim()) {
+            notes[path] = text;
+        } else {
+            delete notes[path];
+        }
+        saveNotesObj(notes);
+    }
+
+    function toggleNotes() {
+        const panel = document.getElementById('notesPanel');
+        const isOpen = panel.classList.toggle('show');
+        const btns = document.querySelectorAll('.notes-toggle-btn');
+        btns.forEach(btn => {
+            btn.classList.toggle('active', isOpen);
+            // 只有当前有文章打开时才显示按钮
+            if (currentNotePath) {
+                btn.classList.add('show');
+            }
+        });
+        if (isOpen) {
+            document.getElementById('notesTextarea').focus();
+        }
+        // 移动端：调整 content-wrapper 高度
+        const isMobile = window.innerWidth <= 700;
+        if (isMobile) {
+            const wrapper = document.getElementById('contentWrapper');
+            if (isOpen) {
+                wrapper.style.flex = '0.5';
+            } else {
+                wrapper.style.flex = '1';
+            }
+        }
+    }
+
+    function loadNote(path) {
+        currentNotePath = path;
+        const textarea = document.getElementById('notesTextarea');
+        textarea.value = getNote(path);
+        updateNoteToggleBtn();
+        // 显示/隐藏笔记按钮
+        document.getElementById('notesToggleBtn').classList.add('show');
+        document.getElementById('notesToggleBtnBottom').classList.add('show');
+    }
+
+    function onNoteInput() {
+        if (!currentNotePath) return;
+        const text = document.getElementById('notesTextarea').value;
+        saveNote(currentNotePath, text);
+        updateNoteIndicator(currentNotePath);
+        updateNoteToggleBtn();
+
+        // 显示「已保存」提示
+        const msg = document.getElementById('notesSavedMsg');
+        if (msg) {
+            msg.classList.add('show');
+            clearTimeout(notesDebounceTimer);
+            notesDebounceTimer = setTimeout(function() {
+                msg.classList.remove('show');
+            }, 1200);
+        }
+    }
+
+    function updateNoteToggleBtn() {
+        if (!currentNotePath) return;
+        const hasNote = getNote(currentNotePath).trim().length > 0;
+        // 按钮始终显示（只要文章已打开），但有笔记时高亮
+        document.getElementById('notesToggleBtn').classList.add('show');
+        document.getElementById('notesToggleBtnBottom').classList.add('show');
+    }
+
+    function updateNoteIndicator(path) {
+        const star = document.querySelector('.fav-star[data-path="' + path + '"]');
+        if (!star) return;
+        const anchor = star.closest('.sidebar-link');
+        if (!anchor) return;
+        let dot = anchor.querySelector('.note-dot');
+        if (getNote(path).trim()) {
+            anchor.classList.add('has-note');
+            if (!dot) {
+                dot = document.createElement('span');
+                dot.className = 'note-dot';
+                anchor.appendChild(dot);
+            }
+        } else {
+            anchor.classList.remove('has-note');
+            if (dot) dot.remove();
+        }
+    }
+
+    function clearNote() {
+        if (!currentNotePath) return;
+        document.getElementById('notesTextarea').value = '';
+        saveNote(currentNotePath, '');
+        updateNoteIndicator(currentNotePath);
+        updateNoteToggleBtn();
+    }
+
+    function refreshNoteIndicators() {
+        const notes = getNotesObj();
+        document.querySelectorAll('.fav-star').forEach(function(star) {
+            const path = star.getAttribute('data-path');
+            if (!path) return;
+            const anchor = star.closest('.sidebar-link');
+            if (!anchor) return;
+            if (notes[path] && notes[path].trim()) {
+                anchor.classList.add('has-note');
+                if (!anchor.querySelector('.note-dot')) {
+                    var dot = document.createElement('span');
+                    dot.className = 'note-dot';
+                    anchor.appendChild(dot);
+                }
+            }
+        });
+        // 收藏列表中的链接
+        document.querySelectorAll('#list-收藏 .sidebar-link').forEach(function(link) {
+            // 从 onclick 里提取 path
+            var m = (link.getAttribute('onclick') || '').match(/\'([^\']+)\'/);
+            if (!m) return;
+            var path = m[1];
+            if (notes[path] && notes[path].trim()) {
+                link.classList.add('has-note');
+                if (!link.querySelector('.note-dot')) {
+                    var dot = document.createElement('span');
+                    dot.className = 'note-dot';
+                    link.appendChild(dot);
+                }
+            }
         });
     }
 
@@ -1009,6 +1297,9 @@
         const iframe = document.getElementById('contentFrame');
         iframe.src = path;
 
+        // 加载笔记
+        loadNote(path);
+
         // 更新 header 信息
         const header = document.getElementById('contentHeader');
         header.classList.add('show');
@@ -1054,6 +1345,9 @@
         // 初始化收藏状态
         updateFavCount();
         refreshFavStars();
+
+        // 初始化笔记指示点
+        refreshNoteIndicators();
 
         // 手机端默认收起侧边栏
         const isMobile = window.innerWidth <= 700;

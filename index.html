@@ -409,8 +409,8 @@
                 display: flex;
                 flex-direction: column;
                 height: calc(100vh - 44px);
-                overflow-y: auto;
-                -webkit-overflow-scrolling: touch;
+                overflow: hidden;
+                position: relative;
             }
 
             /* 搜索框样式微调 */
@@ -419,8 +419,9 @@
 
             /* 手机端：内容区调整 */
             .content-wrapper {
-                flex: none;
-                min-height: 60vh;
+                flex: 1;
+                min-height: 0;
+                overflow: hidden;
             }
 
             /* 手机端：iframe 占满 wrapper */
@@ -572,6 +573,21 @@
         .settings-status .dot.no { background: #ff4d4f; }
 
         /* ── 统一互动面板（评论 + 笔记 Tab） ── */
+        .interact-backdrop {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0);
+            z-index: 28;
+            transition: background 0.25s ease;
+        }
+        .interact-backdrop.show {
+            display: block;
+            background: rgba(0,0,0,0.18);
+        }
+        @media (min-width: 701px) {
+            .interact-backdrop { display: none !important; }
+        }
         .interact-panel {
             display: none;
             flex-direction: column;
@@ -722,22 +738,47 @@
             .interact-toggle-btn#interactToggleBtn {
                 display: none !important;
             }
+            /* 移动端右侧悬浮评论按钮 */
             .interact-toggle-btn#interactToggleBtnBottom {
-                width: 100%;
-                border-radius: 0;
+                position: fixed;
+                bottom: 80px;
+                right: 16px;
+                width: 48px;
+                height: 48px;
+                border-radius: 50%;
+                padding: 0;
                 display: none !important;
                 justify-content: center;
-                position: -webkit-sticky;
-                position: sticky;
-                bottom: 0;
-                z-index: 20;
+                align-items: center;
+                z-index: 30;
+                font-size: 1.3rem;
+                box-shadow: 0 3px 14px rgba(15,52,96,0.35);
+                background: linear-gradient(135deg, #0f3460 0%, #4a6fa5 100%);
+                border: 2px solid rgba(255,255,255,0.25);
+                transition: transform 0.2s, box-shadow 0.2s;
             }
             .interact-toggle-btn#interactToggleBtnBottom.show {
                 display: flex !important;
             }
+            .interact-toggle-btn#interactToggleBtnBottom:hover {
+                transform: scale(1.08);
+                box-shadow: 0 4px 18px rgba(15,52,96,0.45);
+            }
+            .interact-toggle-btn#interactToggleBtnBottom.active {
+                background: linear-gradient(135deg, #e85a4f, #d9483c);
+                transform: rotate(90deg) scale(1.08);
+            }
             .interact-panel {
-                height: 290px;
-                max-height: 42vh;
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                height: auto;
+                max-height: 55vh;
+                z-index: 29;
+                border-top: 2px solid #e0e6ef;
+                border-radius: 16px 16px 0 0;
+                box-shadow: 0 -6px 30px rgba(0,0,0,0.12);
             }
             .comments-input-area {
                 flex-wrap: wrap;
@@ -747,6 +788,10 @@
             }
             .settings-panel {
                 margin: 16px;
+            }
+            /* 悬浮按钮不占用内容空间，无需 padding-bottom */
+            .content {
+                padding-bottom: 0;
             }
         }
 
@@ -1234,8 +1279,10 @@
             <iframe class="content-frame" id="contentFrame" onload="hideLoading()"></iframe>
         </div>
 
-        <!-- 互动面板切换按钮（底部，移动端用） -->
-        <button class="interact-toggle-btn" id="interactToggleBtnBottom" onclick="toggleInteract()" title="打开评论/笔记">💬 评论 · 笔记</button>
+        <!-- 互动面板切换按钮（移动端右侧悬浮浮窗） -->
+        <button class="interact-toggle-btn" id="interactToggleBtnBottom" onclick="toggleInteract()" title="评论/笔记">💬</button>
+        <!-- 移动端面板遮罩（点击关闭面板） -->
+        <div class="interact-backdrop" id="interactBackdrop" onclick="closeInteract()"></div>
         <!-- 统一互动面板：评论 + 笔记 Tab -->
         <div class="interact-panel" id="interactPanel">
             <div class="interact-tabs">
@@ -1563,21 +1610,26 @@
     function toggleInteract(tab) {
         const panel = document.getElementById('interactPanel');
         const wasOpen = panel.classList.contains('show');
-        // 无 tab 参数时：直接切换开/关
-        // 有 tab 参数时：若已打开且当前正是该 tab，则关闭；否则打开并切换
         const shouldClose = wasOpen && (!tab || currentInteractTab === tab);
         if (shouldClose) {
-            panel.classList.remove('show');
-            document.querySelectorAll('.interact-toggle-btn').forEach(b => b.classList.remove('active'));
-            if (window.innerWidth <= 700) document.getElementById('contentWrapper').style.flex = '1';
+            closeInteract();
             return;
         }
         // 打开面板
         panel.classList.add('show');
         document.querySelectorAll('.interact-toggle-btn').forEach(b => b.classList.add('active'));
-        if (window.innerWidth <= 700) document.getElementById('contentWrapper').style.flex = '0.5';
+        // 显示遮罩
+        const backdrop = document.getElementById('interactBackdrop');
+        if (backdrop) { backdrop.classList.add('show'); }
         // 切换到指定 tab（默认 comments）
         switchInteractTab(tab || currentInteractTab || 'comments');
+    }
+
+    function closeInteract() {
+        document.getElementById('interactPanel').classList.remove('show');
+        document.querySelectorAll('.interact-toggle-btn').forEach(b => b.classList.remove('active'));
+        const backdrop = document.getElementById('interactBackdrop');
+        if (backdrop) { backdrop.classList.remove('show'); }
     }
 
     function switchInteractTab(tab) {
@@ -1690,7 +1742,7 @@
         if (GH.token) {
             dot.className = 'dot ok';
             msg.textContent = 'Token 已配置';
-            ghFetch('/user').then(user => {
+            ghFetch('https://api.github.com/user', {}).then(user => {
                 msg.textContent = '已登录：' + (user.login || '未知');
                 localStorage.setItem('gh_login', user.login || '');
             }).catch(() => {

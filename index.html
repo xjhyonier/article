@@ -1368,6 +1368,67 @@
     // ── 收藏功能（本地 + 云端同步） ──
     const FAV_KEY = 'article_favorites';
     const FAV_COUNTS_KEY = 'article_fav_counts';
+    const FAV_CLOUD_PATH = 'data/favorites.json';
+
+    // ── 云端收藏同步（支持 Unicode 的 base64 编码）──
+    function utf8ToBase64(str) {
+        return btoa(String.fromCharCode(...new TextEncoder().encode(str)));
+    }
+    function base64ToUtf8(b64) {
+        return new TextDecoder().decode(Uint8Array.from(atob(b64), c => c.charCodeAt(0)));
+    }
+
+    async function syncFavsFromCloud() {
+        if (!GH.token) return;
+        try {
+            const url = 'https://api.github.com/repos/' + GH.owner + '/' + GH.repo + '/contents/' + FAV_CLOUD_PATH + '?ref=main';
+            const resp = await fetch(url, { headers: ghHeaders() });
+            if (!resp.ok) return;
+            const data = await resp.json();
+            const remote = JSON.parse(base64ToUtf8(data.content));
+            const login = localStorage.getItem('gh_login') || '';
+            const cloudFavs = remote[login] || [];
+            const localFavs = getFavs();
+            const merged = [...new Set([...localFavs, ...cloudFavs])];
+            if (merged.length > localFavs.length) {
+                setFavs(merged);
+            }
+            localStorage.setItem('fav_file_sha', data.sha);
+        } catch (e) {
+            console.warn('syncFavsFromCloud failed:', e);
+        }
+    }
+
+    async function syncFavsToCloud() {
+        if (!GH.token) return;
+        const login = localStorage.getItem('gh_login') || '';
+        if (!login) return;
+        try {
+            const url = 'https://api.github.com/repos/' + GH.owner + '/' + GH.repo + '/contents/' + FAV_CLOUD_PATH + '?ref=main';
+            const resp = await fetch(url, { headers: ghHeaders() });
+            let sha = null;
+            let remote = {};
+            if (resp.ok) {
+                const data = await resp.json();
+                sha = data.sha;
+                remote = JSON.parse(base64ToUtf8(data.content));
+            }
+            remote[login] = getFavs();
+            const body = JSON.stringify({
+                message: 'sync favorites: ' + login,
+                content: utf8ToBase64(JSON.stringify(remote, null, 2)),
+                sha: sha,
+                branch: 'main'
+            });
+            await fetch(url, {
+                method: 'PUT',
+                headers: Object.assign({}, ghHeaders(), { 'Content-Type': 'application/json' }),
+                body: body
+            });
+        } catch (e) {
+            console.warn('syncFavsToCloud failed:', e);
+        }
+    }
 
     function getFavs() {
         try { return JSON.parse(localStorage.getItem(FAV_KEY)) || []; }
@@ -1461,6 +1522,7 @@
                 console.warn('Cloud fav sync failed:', err);
             }
         }
+        syncFavsToCloud();
         if (activeCategory === '收藏') renderFavList();
     }
 
@@ -1869,6 +1931,7 @@
 
     // ── 初始化 ──
     document.addEventListener('DOMContentLoaded', async function() {
+        await syncFavsFromCloud();
         updateFavCount();
         refreshFavStars();
         refreshNoteIndicators();

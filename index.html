@@ -402,56 +402,30 @@
                 max-height: calc(50vh - 50px);
             }
 
-            /* 手机端：内容区占满 */
+            /* 手机端：内容区占满，用视口高度约束 */
             .content {
                 flex: 1;
                 min-height: 0;
+                display: flex;
+                flex-direction: column;
+                height: calc(100vh - 44px);
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
             }
 
             /* 搜索框样式微调 */
             .sidebar-header { padding: 10px 12px 8px; flex-shrink: 0; }
             .sidebar-search { padding: 8px 10px 8px 32px; font-size: 0.85rem; }
 
-            /* 手机端：笔记面板适配 */
-            .notes-toggle-btn {
-                border-radius: 0;
-                justify-content: center;
-                padding: 10px 18px;
-            }
-            .notes-toggle-btn#notesToggleBtn {
-                /* 手机端隐藏顶部按钮，只保留底部按钮 */
-                display: none !important;
-            }
-            .notes-toggle-btn#notesToggleBtnBottom {
-                /* 底部按钮在内容区，手机端全宽显示 */
-                width: 100%;
-                border-radius: 0;
-                display: none;
-            }
-            .notes-toggle-btn#notesToggleBtnBottom.show {
-                display: flex !important;
-            }
-            .notes-panel {
-                height: 180px;
-                max-height: 30vh;
-            }
-            .notes-textarea {
-                font-size: 0.82rem;
-                padding: 8px 12px;
-            }
-            .notes-panel-header {
-                padding: 5px 12px;
-                font-size: 0.72rem;
-            }
-
-            /* 手机端：内容区当笔记面板打开时需要调整 */
+            /* 手机端：内容区调整 */
             .content-wrapper {
-                flex: 1;
-                min-height: 0;
+                flex: none;
+                min-height: 60vh;
             }
 
-            /* 手机端：iframe 高度自适应 */
+            /* 手机端：iframe 占满 wrapper */
             .content-frame {
+                height: 100%;
                 min-height: 200px;
             }
         }
@@ -597,16 +571,54 @@
         .settings-status .dot.ok { background: #52c41a; }
         .settings-status .dot.no { background: #ff4d4f; }
 
-        /* ── 评论区 ── */
-        .comments-panel {
+        /* ── 统一互动面板（评论 + 笔记 Tab） ── */
+        .interact-panel {
             display: none;
             flex-direction: column;
-            height: 240px;
-            border-top: 1px solid #e8ecf0;
+            height: 260px;
+            border-top: 2px solid #e0e6ef;
             background: #f7f9fc;
             flex-shrink: 0;
         }
-        .comments-panel.show { display: flex; }
+        .interact-panel.show { display: flex; }
+
+        /* Tab 栏 */
+        .interact-tabs {
+            display: flex;
+            border-bottom: 1px solid #e0e6ef;
+            background: #eef1f7;
+            flex-shrink: 0;
+        }
+        .interact-tab-btn {
+            flex: 1;
+            padding: 8px 0;
+            border: none;
+            background: none;
+            font-size: 0.83rem;
+            font-weight: 500;
+            color: #8a94a8;
+            cursor: pointer;
+            transition: all 0.18s;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -1px;
+        }
+        .interact-tab-btn:hover { color: #4a6fa5; background: rgba(74,111,165,0.05); }
+        .interact-tab-btn.active {
+            color: #1a1a2e;
+            border-bottom-color: #4a6fa5;
+            background: #f7f9fc;
+        }
+
+        /* Tab 内容区 */
+        .interact-tab-pane {
+            display: none;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+        }
+        .interact-tab-pane.active { display: flex; }
+
+        /* ── 评论列表 ── */
         .comments-list {
             flex: 1;
             overflow-y: auto;
@@ -654,6 +666,7 @@
             padding: 10px 16px;
             border-top: 1px solid #e8ecf0;
             background: #eef1f7;
+            flex-shrink: 0;
         }
         .comments-input-area input {
             width: 80px;
@@ -684,8 +697,8 @@
         .comments-input-area button:hover { filter: brightness(1.1); }
         .comments-input-area button:disabled { opacity: 0.5; cursor: not-allowed; }
 
-        /* ── 评论区切换按钮 ── */
-        .comments-toggle-btn {
+        /* ── 互动面板切换按钮 ── */
+        .interact-toggle-btn {
             display: none;
             align-items: center;
             gap: 6px;
@@ -700,27 +713,31 @@
             flex-shrink: 0;
             font-weight: 500;
         }
-        .comments-toggle-btn.show { display: flex; }
-        .comments-toggle-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
-        .comments-toggle-btn.active { background: linear-gradient(135deg, #4a6fa5, #0f3460); }
+        .interact-toggle-btn.show { display: flex !important; }
+        .interact-toggle-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
+        .interact-toggle-btn.active { background: linear-gradient(135deg, #4a6fa5, #0f3460); }
 
         /* ── 移动端适配 ── */
         @media (max-width: 700px) {
-            .comments-toggle-btn#commentsToggleBtn {
+            .interact-toggle-btn#interactToggleBtn {
                 display: none !important;
             }
-            .comments-toggle-btn#commentsToggleBtnBottom {
+            .interact-toggle-btn#interactToggleBtnBottom {
                 width: 100%;
                 border-radius: 0;
-                display: none;
+                display: none !important;
                 justify-content: center;
+                position: -webkit-sticky;
+                position: sticky;
+                bottom: 0;
+                z-index: 20;
             }
-            .comments-toggle-btn#commentsToggleBtnBottom.show {
+            .interact-toggle-btn#interactToggleBtnBottom.show {
                 display: flex !important;
             }
-            .comments-panel {
-                height: 280px;
-                max-height: 40vh;
+            .interact-panel {
+                height: 290px;
+                max-height: 42vh;
             }
             .comments-input-area {
                 flex-wrap: wrap;
@@ -1202,8 +1219,8 @@
             <a href="#" id="contentOpenLink" target="_blank"
                style="margin-left:auto; font-size:0.82rem; color:#1a1a2e; display:none;">
                在新窗口打开 ↗</a>
-            <button class="comments-toggle-btn" id="commentsToggleBtn" onclick="toggleComments()" title="打开评论区">💬 评论</button>
-            <button class="notes-toggle-btn" id="notesToggleBtn" onclick="toggleNotes()" title="打开笔记">📝 笔记</button>
+            <button class="interact-toggle-btn" id="interactToggleBtn" onclick="toggleInteract()" title="打开评论/笔记">💬 评论 · 笔记</button>
+            <button class="notes-toggle-btn" id="notesToggleBtn" onclick="toggleInteract('notes')" title="打开笔记" style="display:none">📝 笔记</button>
         </div>
         <div class="welcome" id="welcome">
             <span>📖</span>
@@ -1217,28 +1234,34 @@
             <iframe class="content-frame" id="contentFrame" onload="hideLoading()"></iframe>
         </div>
 
-        <!-- 评论区切换按钮（底部） -->
-        <button class="comments-toggle-btn" id="commentsToggleBtnBottom" onclick="toggleComments()" title="打开评论区">💬 评论</button>
-        <!-- 评论区面板 -->
-        <div class="comments-panel" id="commentsPanel">
-            <div class="comments-list" id="commentsList">
-                <div class="comments-empty">暂无评论，来抢沙发吧 🎉</div>
+        <!-- 互动面板切换按钮（底部，移动端用） -->
+        <button class="interact-toggle-btn" id="interactToggleBtnBottom" onclick="toggleInteract()" title="打开评论/笔记">💬 评论 · 笔记</button>
+        <!-- 统一互动面板：评论 + 笔记 Tab -->
+        <div class="interact-panel" id="interactPanel">
+            <div class="interact-tabs">
+                <button class="interact-tab-btn active" id="tabBtnComments" onclick="switchInteractTab('comments')">💬 评论</button>
+                <button class="interact-tab-btn" id="tabBtnNotes" onclick="switchInteractTab('notes')">📝 笔记</button>
             </div>
-            <div class="comments-input-area">
-                <input type="text" id="commentNick" placeholder="昵称" maxlength="20">
-                <input type="text" id="commentText" placeholder="写下你的评论..." maxlength="500" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();submitComment();}">
-                <button onclick="submitComment()" id="commentSubmitBtn">发送</button>
+            <!-- 评论 Tab -->
+            <div class="interact-tab-pane active" id="tabPaneComments">
+                <div class="comments-list" id="commentsList">
+                    <div class="comments-empty">暂无评论，来抢沙发吧 🎉</div>
+                </div>
+                <div class="comments-input-area">
+                    <input type="text" id="commentNick" placeholder="昵称" maxlength="20">
+                    <input type="text" id="commentText" placeholder="写下你的评论..." maxlength="500" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();submitComment();}">
+                    <button onclick="submitComment()" id="commentSubmitBtn">发送</button>
+                </div>
             </div>
-        </div>
-        <!-- 笔记面板（保留，仅自己可见） -->
-        <button class="notes-toggle-btn" id="notesToggleBtnBottom" onclick="toggleNotes()" title="打开笔记">📝 笔记</button>
-        <div class="notes-panel" id="notesPanel">
-            <div class="notes-panel-header">
-                <span>📝 私人笔记（仅自己可见）</span>
-                <span class="saved-msg" id="notesSavedMsg">已保存</span>
-                <button class="notes-clear-btn" onclick="clearNote()">清空</button>
+            <!-- 笔记 Tab -->
+            <div class="interact-tab-pane" id="tabPaneNotes">
+                <div class="notes-panel-header">
+                    <span>📝 私人笔记（仅自己可见）</span>
+                    <span class="saved-msg" id="notesSavedMsg">已保存</span>
+                    <button class="notes-clear-btn" onclick="clearNote()">清空</button>
+                </div>
+                <textarea class="notes-textarea" id="notesTextarea" oninput="onNoteInput()" placeholder="在这里写笔记、感想、摘要..."></textarea>
             </div>
-            <textarea class="notes-textarea" id="notesTextarea" oninput="onNoteInput()" placeholder="在这里写笔记、感想、摘要..."></textarea>
         </div>
 
     </div>
@@ -1469,23 +1492,16 @@
     }
 
     function toggleNotes() {
-        const panel = document.getElementById('notesPanel');
-        const isOpen = panel.classList.toggle('show');
-        document.querySelectorAll('.notes-toggle-btn').forEach(btn => {
-            btn.classList.toggle('active', isOpen);
-            if (currentNotePath) btn.classList.add('show');
-        });
-        if (isOpen) document.getElementById('notesTextarea').focus();
-        if (window.innerWidth <= 700) {
-            document.getElementById('contentWrapper').style.flex = isOpen ? '0.5' : '1';
-        }
+        // 兼容旧调用：打开互动面板并切到笔记Tab
+        toggleInteract('notes');
     }
 
     function loadNote(path) {
         currentNotePath = path;
         document.getElementById('notesTextarea').value = getNote(path);
-        document.getElementById('notesToggleBtn').classList.add('show');
-        document.getElementById('notesToggleBtnBottom').classList.add('show');
+        // 互动面板按钮显示
+        document.getElementById('interactToggleBtn').classList.add('show');
+        document.getElementById('interactToggleBtnBottom').classList.add('show');
     }
 
     function onNoteInput() {
@@ -1541,25 +1557,49 @@
         });
     }
 
-    // ── 评论功能（GitHub Comments API） ──
+    // ── 统一互动面板（评论 + 笔记 Tab） ──
+    let currentInteractTab = 'comments'; // 'comments' | 'notes'
+
+    function toggleInteract(tab) {
+        const panel = document.getElementById('interactPanel');
+        const wasOpen = panel.classList.contains('show');
+        // 无 tab 参数时：直接切换开/关
+        // 有 tab 参数时：若已打开且当前正是该 tab，则关闭；否则打开并切换
+        const shouldClose = wasOpen && (!tab || currentInteractTab === tab);
+        if (shouldClose) {
+            panel.classList.remove('show');
+            document.querySelectorAll('.interact-toggle-btn').forEach(b => b.classList.remove('active'));
+            if (window.innerWidth <= 700) document.getElementById('contentWrapper').style.flex = '1';
+            return;
+        }
+        // 打开面板
+        panel.classList.add('show');
+        document.querySelectorAll('.interact-toggle-btn').forEach(b => b.classList.add('active'));
+        if (window.innerWidth <= 700) document.getElementById('contentWrapper').style.flex = '0.5';
+        // 切换到指定 tab（默认 comments）
+        switchInteractTab(tab || currentInteractTab || 'comments');
+    }
+
+    function switchInteractTab(tab) {
+        currentInteractTab = tab;
+        // 更新 tab 按钮状态
+        document.getElementById('tabBtnComments').classList.toggle('active', tab === 'comments');
+        document.getElementById('tabBtnNotes').classList.toggle('active', tab === 'notes');
+        // 更新 tab 内容区
+        document.getElementById('tabPaneComments').classList.toggle('active', tab === 'comments');
+        document.getElementById('tabPaneNotes').classList.toggle('active', tab === 'notes');
+        // 加载对应内容
+        if (tab === 'comments' && currentCommentsPath) {
+            loadComments(currentCommentsPath);
+            setTimeout(() => document.getElementById('commentText').focus(), 50);
+        } else if (tab === 'notes') {
+            setTimeout(() => document.getElementById('notesTextarea').focus(), 50);
+        }
+    }
+
+    // 兼容旧的 toggleComments 调用
     async function toggleComments() {
-        const panel = document.getElementById('commentsPanel');
-        const isOpen = panel.classList.toggle('show');
-        document.querySelectorAll('.comments-toggle-btn').forEach(btn => btn.classList.toggle('active', isOpen));
-        if (isOpen && currentCommentsPath) {
-            await loadComments(currentCommentsPath);
-            document.getElementById('commentText').focus();
-        }
-        if (window.innerWidth <= 700) {
-            const wrapper = document.getElementById('contentWrapper');
-            if (isOpen) {
-                document.getElementById('notesPanel').classList.remove('show');
-                document.querySelectorAll('.notes-toggle-btn').forEach(b => b.classList.remove('active'));
-                wrapper.style.flex = '0.5';
-            } else {
-                wrapper.style.flex = '1';
-            }
-        }
+        toggleInteract('comments');
     }
 
     async function loadComments(path) {
@@ -1737,10 +1777,10 @@
         const iframe = document.getElementById('contentFrame');
         iframe.src = path;
         loadNote(path);
-        document.getElementById('commentsToggleBtn').classList.add('show');
-        document.getElementById('commentsToggleBtnBottom').classList.add('show');
-        if (document.getElementById('commentsPanel').classList.contains('show')) {
-            loadComments(path);
+        document.getElementById('interactToggleBtn').classList.add('show');
+        document.getElementById('interactToggleBtnBottom').classList.add('show');
+        if (document.getElementById('interactPanel').classList.contains('show')) {
+            if (currentInteractTab === 'comments') loadComments(path);
         }
         currentCommentsPath = path;
         const header = document.getElementById('contentHeader');
